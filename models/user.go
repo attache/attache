@@ -1,34 +1,45 @@
 package models
 
+import (
+	"database/sql"
+)
+
 type User struct {
-	ID        int64  `json:"id"`
-	Username  string `json:"username"`
-	FirstName string `json:"firstname"`
-	LastName  string `json:"lastname"`
-	PassHash  string `json:"-"`
+	ID        int64
+	Username  string
+	Firstname string
+	Lastname  string
+	Password  string
+	Created   t
 }
 
-func (u *User) Table() string {
-	return "users"
-}
+func (m *User) Table() string { return "user" }
 
-func (u *User) Insert() (columns []string, values []interface{}) {
-	columns = []string{"id", "username", "firstname", "lastname", "passhash"}
-	values = []interface{}{u.ID, u.Username, u.FirstName, u.LastName, u.PassHash}
+func (m *User) Insert() (columns []string, values []interface{}) {
+	columns = []string{"id", "username", "firstname", "lastname", "password", "created"}
+	values = []interface{}{m.ID, m.Username, m.Firstname, m.Lastname, m.Password, m.Created}
 	return
 }
 
-func (u *User) Update() (columns []string, values []interface{}) {
-	columns = []string{"firstname", "lastname"}
-	values = []interface{}{u.FirstName, u.LastName}
+func (m *User) AfterInsert(result sql.Result) {
+	id, err := result.LastInsertID()
+	if err != nil {
+		panic(err)
+	}
+	m.ID = id
+}
+
+func (m *User) Update() (columns []string, values []interface{}) {
+	columns = []string{"username", "firstname", "lastname", "password", "created"}
+	values = []interface{}{m.Username, m.Firstname, m.Lastname, m.Password, m.Created}
 	return
 }
 
-func (u *User) Select() (columns []string, into []interface{}) {
-	columns = []string{"id", "username", "firstname", "lastname", "passhash"}
-	into = []interface{}{&u.ID, &u.Username, &u.FirstName, &u.LastName, &u.PassHash}
+func (m *User) Select() (columns []string, into []interface{}) {
+	columns = []string{"id", "username", "firstname", "lastname", "password", "created"}
+	into = []interface{}{&m.ID, &m.Username, &m.Firstname, &m.Lastname, &m.Password, &m.Created}
 	return
 }
 
-func (u *User) KeyColumns() []string     { return []string{"id"} }
-func (u *User) KeyValues() []interface{} { return []interface{}{u.ID} }
+func (m *User) KeyColumns() []string     { return []string{"id"} }
+func (m *User) KeyValues() []interface{} { return []interface{}{m.ID} }
