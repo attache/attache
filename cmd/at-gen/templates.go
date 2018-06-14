@@ -97,7 +97,7 @@ var updateFormTemplate = `
 {{define "title"}}Edit [[.Name]]{{end}}
 {{define "body"}}
 	<h1>Edit [[.Name]]</h1>
-	<form name="edit_[[.Table]]" method="post" action="/[[.Table]]/{{.[[.KeyStructField]]}}">
+	<form name="edit_[[.Table]]" method="post" action="/[[.Table]]?id={{.[[.KeyStructField]]}}">
 	[[range .Fields]]
 		[[- if not .NoUpdate]]
 		<div>
@@ -117,115 +117,109 @@ package main
 import (
 	"database/sql"
 	"github.com/go-chi/chi"
-	"github.com/mccolljr/attache/utils"
+	"github.com/mccolljr/attache"
 )
 
-func init() { Register{{.Name}}(App) }
+func (c *Ctx) GET_{{.Name}}New(r *http.Request) ([]byte, error) {
+	return c.Views.Render("{{.Table}}.create", nil)
+}
 
-func Register{{.Name}}(r chi.Router) {
-	// new form
-	r.Get("/{{.Table}}/new", utils.RenderHTML("{{.Table}}.create"))
-
-	// edit form
-	r.Get("/{{.Table}}/{id}", utils.RenderFunc(
-		"text/html",
-		"{{.Table}}.update",
-		func (r *http.Request) interface{} {
-			id := chi.URLParam(r, "id")
-			var target models.{{.Name}}
-			if err := DB.Find(&target, id); err != nil {
-				if err == sql.ErrNoRows {
-					utils.Error(404)
-				} else {
-					log.Println(err)
-					utils.Error(500)
-				}
-			}
-			
-			return &target
-		},
-	))
-
-	// create handler
-	r.Post("/{{.Table}}/new", func(w http.ResponseWriter, r *http.Request){
-		if err := r.ParseForm(); err != nil {
+func (c *Ctx) GET_{{.Name}}(w http.ResponseWriter, r *http.Request) {
+	id := r.FormValue("id")
+	target := new(models.{{.Name}})
+	if err := c.DB.Find(target, id); err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(404)
+		} else {
 			log.Println(err)
-			utils.Error(500)
+			w.WriteHeader(500)
 		}
+		return
+	}
 
-		var target models.{{.Name}}
-		
-		if err := FormDecoder.Decode(&target, r.Form); err != nil {
+	data, err := c.Views.Render("{{.Table}}.update", &target)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.Header().Set("content-type", "text/html")
+	w.Write(data)
+}
+
+func (c *Ctx) POST_{{.Name}}New(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+		return
+	}
+
+	target := new(models.{{.Name}})
+	
+	if err := attache.FormDecode(target, r.Form); err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+		return
+	}
+
+	if err := c.DB.Insert(target); err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.WriteHeader(200)
+	fmt.Fprintf(w, "%v", target.{{.KeyStructField}})
+}
+
+func (c *Ctx) POST_{{.Name}}(w http.ResponseWriter, r *http.Request) {
+	id := r.FormValue("id")
+	target := new(models.{{.Name}})
+	if err := c.DB.Find(target, id); err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(404)
+		} else {
 			log.Println(err)
-			utils.Error(500)
+			w.WriteHeader(500)
 		}
+		return
+	}
 
-		if err := DB.Insert(&target); err != nil {
+	if err := attache.FormDecode(target, r.Form); err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+		return
+	}
+
+	if err := c.DB.Update(target); err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+		return
+	}
+
+	w.WriteHeader(200)
+}
+
+func (c *Ctx) DELETE_{{.Name}}(w http.ResponseWriter, r *http.Request) {
+	id := r.FormValue("id")
+	target := new(models.{{.Name}})
+	if err := c.DB.Find(target, id); err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(200) // treat as success
+		} else {
 			log.Println(err)
-			utils.Error(500)
+			w.WriteHeader(500)
 		}
+		return
+	}
 
-		w.WriteHeader(200)
-		fmt.Fprintf(w, "%v", target.{{.KeyStructField}})
-	})
+	if err := c.DB.Delete(target); err != nil {
+		log.Println(err)
+		w.WriteHeader(500)
+		return
+	}
 
-	// update handler
-	r.Post("/{{.Table}}/{id}", func(w http.ResponseWriter, r *http.Request){
-		if err := r.ParseForm(); err != nil {
-			log.Println(err)
-			utils.Error(500)
-		}
-
-		var (
-			id = chi.URLParam(r, "id")
-			target models.{{.Name}}
-		)
-
-		if err := DB.Find(&target, id); err != nil {
-			if err == sql.ErrNoRows {
-				utils.Error(404)
-			} else {
-				log.Println(err)
-				utils.Error(500)
-			}
-		}
-		
-		if err := FormDecoder.Decode(&target, r.Form); err != nil {
-			log.Println(err)
-			utils.Error(500)
-		}
-
-		if err := DB.Update(&target); err != nil {
-			log.Println(err)
-			utils.Error(500)
-		}
-
-		w.WriteHeader(200)
-	})
-
-	// delete handler
-	r.Delete("/{{.Table}}/{id}", func(w http.ResponseWriter, r *http.Request){
-		var (
-			id = chi.URLParam(r, "id")
-			target models.{{.Name}}
-		)
-
-		if err := DB.Find(&target, id); err != nil {
-			if err == sql.ErrNoRows {
-				w.WriteHeader(200)
-				return
-			} else {
-				log.Println(err)
-				utils.Error(500)
-			}
-		}
-
-		if err := DB.Delete(&target); err != nil {
-			log.Println(err)
-			utils.Error(500)
-		}
-
-		w.WriteHeader(200)
-	})
+	w.WriteHeader(200)
 }
 `

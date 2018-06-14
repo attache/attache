@@ -7,16 +7,35 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"html/template"
 )
 
-var global_caches = map[string]ViewCache{}
+type vcCache struct {
+	sync.RWMutex
+	have map[string]ViewCache
+}
+
+func (v *vcCache) lookupOk(key string) (ViewCache, bool) {
+	v.RLock()
+	defer v.RUnlock()
+	got, ok := v.have[key]
+	return got, ok
+}
+
+func (v *vcCache) put(key string, vc ViewCache) {
+	v.Lock()
+	defer v.Unlock()
+	v.have[key] = vc
+}
+
+var global_viewCaches = vcCache{have: make(map[string]ViewCache, 1)}
 
 func viewsForRoot(root string) (ViewCache, error) {
 	root = filepath.Clean(root)
 
-	if cached, ok := global_caches[root]; ok {
+	if cached, ok := global_viewCaches.lookupOk(root); ok {
 		return cached, nil
 	}
 
@@ -25,7 +44,7 @@ func viewsForRoot(root string) (ViewCache, error) {
 		return v, err
 	}
 
-	global_caches[root] = v
+	global_viewCaches.put(root, v)
 	return v, nil
 }
 

@@ -55,14 +55,13 @@ func parseFields(defs []string) (list []Field, hasKey bool) {
 
 			hasKey = hasKey || f.Key
 
+			f.NoInsert = strings.Index(parts[2], "noinsert") > -1
+			f.NoUpdate = strings.Index(parts[2], "noupdate") > -1
+			f.NoSelect = strings.Index(parts[2], "noselect") > -1
+
+			// enforce certain flags for keys
 			if f.Key {
-				f.NoInsert = false
 				f.NoUpdate = true
-				f.NoSelect = false
-			} else {
-				f.NoInsert = strings.Index(parts[2], "noinsert") > -1
-				f.NoUpdate = strings.Index(parts[2], "noupdate") > -1
-				f.NoSelect = strings.Index(parts[2], "noselect") > -1
 			}
 		}
 
@@ -93,7 +92,14 @@ func buildModel(name string, table string, defs []string) *Model {
 		m.Fields = append(
 			append(
 				make([]Field, 0, len(m.Fields)+1),
-				Field{Column: m.KeyColumn, StructField: m.KeyStructField, Type: "int64", Key: true, NoUpdate: true},
+				Field{
+					Column:      m.KeyColumn,
+					StructField: m.KeyStructField,
+					Type:        "int64",
+					Key:         true,
+					NoUpdate:    true,
+					NoInsert:    true,
+				},
 			),
 			m.Fields...,
 		)

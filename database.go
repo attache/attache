@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 )
 
 type Storable interface {
@@ -35,7 +36,24 @@ type (
 	AfterDeleter  interface{ AfterDelete(sql.Result) }
 )
 
-var global_dbconns = map[string]*DB{}
+type dbCache struct {
+	sync.RWMutex
+	have map[string]*DB
+}
+
+func (c *dbCache) lookup(key string) *DB {
+	c.RLock()
+	defer c.RUnlock()
+	return c.have[key]
+}
+
+func (c *dbCache) put(key string, db *DB) {
+	c.Lock()
+	defer c.Unlock()
+	c.have[key] = db
+}
+
+var global_dbConns = dbCache{have: make(map[string]*DB, 1)}
 
 type DB struct {
 	conn *sql.DB
@@ -44,7 +62,7 @@ type DB struct {
 func openDB(driver, dsn string) (*DB, error) {
 	key := driver + ":" + dsn
 
-	if db := global_dbconns[key]; db != nil {
+	if db := global_dbConns.lookup(key); db != nil {
 		if err := db.conn.Ping(); err != nil {
 			return nil, err
 		}
@@ -62,7 +80,7 @@ func openDB(driver, dsn string) (*DB, error) {
 	}
 
 	db := &DB{conn: conn}
-	global_dbconns[key] = db
+	global_dbConns.put(key, db)
 	return db, nil
 }
 
