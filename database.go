@@ -1,4 +1,4 @@
-package database
+package attache
 
 import (
 	"bytes"
@@ -8,11 +8,50 @@ import (
 	"strings"
 )
 
+type Storable interface {
+	Table() string
+
+	Insert() (columns []string, values []interface{})
+	Update() (columns []string, values []interface{})
+
+	Select() (columns []string, into []interface{})
+
+	KeyColumns() []string
+	KeyValues() []interface{}
+}
+
+type (
+	BeforeInserter interface{ BeforeInsert() error }
+	AfterInserter  interface{ AfterInsert(sql.Result) }
+)
+
+type (
+	BeforeUpdater interface{ BeforeUpdate() (err error) }
+	AfterUpdater  interface{ AfterUpdate(sql.Result) }
+)
+
+type (
+	BeforeDeleter interface{ BeforeDelete() (err error) }
+	AfterDeleter  interface{ AfterDelete(sql.Result) }
+)
+
+var global_dbconns = map[string]*DB{}
+
 type DB struct {
 	conn *sql.DB
 }
 
-func Open(driver, dsn string) (*DB, error) {
+func openDB(driver, dsn string) (*DB, error) {
+	key := driver + ":" + dsn
+
+	if db := global_dbconns[key]; db != nil {
+		if err := db.conn.Ping(); err != nil {
+			return nil, err
+		}
+
+		return db, nil
+	}
+
 	conn, err := sql.Open(driver, dsn)
 	if err != nil {
 		return nil, err
@@ -22,7 +61,9 @@ func Open(driver, dsn string) (*DB, error) {
 		return nil, err
 	}
 
-	return &DB{conn: conn}, nil
+	db := &DB{conn: conn}
+	global_dbconns[key] = db
+	return db, nil
 }
 
 func (d DB) Exec(query string, args ...interface{}) (sql.Result, error) {

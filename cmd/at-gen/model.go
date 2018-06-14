@@ -53,7 +53,7 @@ func parseFields(defs []string) (list []Field, hasKey bool) {
 				})
 			}
 
-			hasKey = true
+			hasKey = hasKey || f.Key
 
 			if f.Key {
 				f.NoInsert = false
