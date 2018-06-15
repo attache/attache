@@ -108,6 +108,7 @@ func (d DB) Insert(s Storable) error {
 
 		fmt.Fprintf(query, "%s", name)
 	}
+
 	query.WriteString(") VALUES (")
 	for i := range vals {
 		if i != 0 {
@@ -123,7 +124,7 @@ func (d DB) Insert(s Storable) error {
 		}
 	}
 
-	result, err := d.conn.Exec(query.String(), append(vals, s.KeyValues()...)...)
+	result, err := d.conn.Exec(query.String(), vals...)
 	if err != nil {
 		return err
 	}
@@ -260,7 +261,10 @@ func (d DB) FindBy(into Storable, field string, val interface{}) error {
 
 	defer rows.Close()
 
-	rows.Next()
+	if !rows.Next() {
+		return sql.ErrNoRows
+	}
+
 	return rows.Scan(targets...)
 }
 

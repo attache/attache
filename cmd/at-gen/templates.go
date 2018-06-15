@@ -149,7 +149,10 @@ var routeTemplate = `
 package main
 
 import (
+	"fmt"
+	"net/http"
 	"database/sql"
+
 	"github.com/go-chi/chi"
 	"github.com/mccolljr/attache"
 )
@@ -160,7 +163,7 @@ func (c *Ctx) GET_{{.Name}}New(r *http.Request) ([]byte, error) {
 
 func (c *Ctx) GET_{{.Name}}List(r *http.Request) ([]byte, error) {
 	all, err := c.DB.All(func() attache.Storable{ return new(models.{{.Name}}) })
-	if err != nil {
+	if err != nil && err != sql.ErrNoRows {
 		attache.ErrorFatal(err)
 	}
 

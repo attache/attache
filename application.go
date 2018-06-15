@@ -52,11 +52,12 @@ type Application struct {
 }
 
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	defer a.recover(w, r)
-
 	ctx := reflect.New(a.contextType)
 
-	ictx := ctx.Interface()
+	ictx := ctx.Interface().(Context)
+
+	// initialize context
+	ictx.Init(w, r)
 
 	// initialize views when context has view capability
 	if impl, ok := ictx.(HasViews); ok {
@@ -77,13 +78,17 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		impl.SetDB(db)
 	}
 
-	// initialize context
-	ictx.(Context).Init(w, r)
-
 	// store context and execute handlers
 	a.router.ServeHTTP(w, r.WithContext(
 		context.WithValue(r.Context(), ctxContextKey, ctx),
 	))
+}
+
+func (a *Application) recoveryMiddleware(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer a.recover(w, r)
+		h.ServeHTTP(w, r)
+	})
 }
 
 func (*Application) recover(w http.ResponseWriter, r *http.Request) {
@@ -118,6 +123,7 @@ func Bootstrap(ctxType Context) (*Application, error) {
 	)
 
 	a.router.Use(middleware.DefaultLogger)
+	a.router.Use(a.recoveryMiddleware)
 
 	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
 		return nil, fmt.Errorf("expecting pointer to a struct, got %T", ctxType)
