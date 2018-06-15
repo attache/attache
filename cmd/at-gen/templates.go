@@ -111,6 +111,40 @@ var updateFormTemplate = `
 {{end}}
 `
 
+var listViewTemplate = `
+{{define "title"}}[[.Name]] List{{end}}
+{{define "body"}}
+<h1>[[.Name]] List</h1>
+<table>
+	<thead>
+		<tr>
+		[[range .Fields]]
+			[[- if not .NoSelect]]
+			<th>[[.StructField]]</th>
+			[[end -]]
+		[[end]]
+		</tr>
+	</thead>
+	<tbody>
+	{{range .}}
+		<tr>
+		[[$table := .Table]]
+		[[range .Fields]]
+			[[- if not .NoSelect]]
+			[[- if .Key ]]
+			<td><a href="/[[$table]]?id={{.[[.StructField]]}}">{{.[[.StructField]]}}</a></td>
+			[[else]]
+			<td>{{.[[.StructField]]}}</td>
+			[[end -]]
+			[[end -]]
+		[[end]]
+		<tr>
+	{{end}}
+	</tbody>
+<table>
+{{end}}
+`
+
 var routeTemplate = `
 package main
 
@@ -124,24 +158,29 @@ func (c *Ctx) GET_{{.Name}}New(r *http.Request) ([]byte, error) {
 	return c.Views.Render("{{.Table}}.create", nil)
 }
 
+func (c *Ctx) GET_{{.Name}}List(r *http.Request) ([]byte, error) {
+	all, err := c.DB.All(func() attache.Storable{ return new(models.{{.Name}}) })
+	if err != nil {
+		attache.ErrorFatal(err)
+	}
+
+	return c.Views.Render("{{.Table}}.list", all)
+}
+
 func (c *Ctx) GET_{{.Name}}(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 	target := new(models.{{.Name}})
 	if err := c.DB.Find(target, id); err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(404)
-		} else {
-			log.Println(err)
-			w.WriteHeader(500)
+			attache.Error(404)
 		}
-		return
+		
+		attache.ErrorFatal(err)
 	}
 
 	data, err := c.Views.Render("{{.Table}}.update", &target)
 	if err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		return
+		attache.ErrorFatal(err)
 	}
 
 	w.Header().Set("content-type", "text/html")
@@ -150,27 +189,20 @@ func (c *Ctx) GET_{{.Name}}(w http.ResponseWriter, r *http.Request) {
 
 func (c *Ctx) POST_{{.Name}}New(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		return
+		attache.ErrorFatal(err)
 	}
 
 	target := new(models.{{.Name}})
 	
 	if err := attache.FormDecode(target, r.Form); err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		return
+		attache.ErrorFatal(err)
 	}
 
 	if err := c.DB.Insert(target); err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		return
+		attache.ErrorFatal(err)
 	}
 
-	w.WriteHeader(200)
-	fmt.Fprintf(w, "%v", target.{{.KeyStructField}})
+	attache.RedirectPage(fmt.Sprintf("/{{.Table}}?id=%d", target.{{.KeyStructField}}))
 }
 
 func (c *Ctx) POST_{{.Name}}(w http.ResponseWriter, r *http.Request) {
@@ -178,27 +210,21 @@ func (c *Ctx) POST_{{.Name}}(w http.ResponseWriter, r *http.Request) {
 	target := new(models.{{.Name}})
 	if err := c.DB.Find(target, id); err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(404)
-		} else {
-			log.Println(err)
-			w.WriteHeader(500)
+			attache.Error(404)
 		}
-		return
+		
+		attache.ErrorFatal(err)
 	}
 
 	if err := attache.FormDecode(target, r.Form); err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		return
+		attache.ErrorFatal(err)
 	}
 
 	if err := c.DB.Update(target); err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		return
+		attache.ErrorFatal(err)
 	}
 
-	w.WriteHeader(200)
+	attache.RedirectPage(fmt.Sprintf("/{{.Table}}?id=%d", target.{{.KeyStructField}}))
 }
 
 func (c *Ctx) DELETE_{{.Name}}(w http.ResponseWriter, r *http.Request) {
@@ -206,18 +232,14 @@ func (c *Ctx) DELETE_{{.Name}}(w http.ResponseWriter, r *http.Request) {
 	target := new(models.{{.Name}})
 	if err := c.DB.Find(target, id); err != nil {
 		if err == sql.ErrNoRows {
-			w.WriteHeader(200) // treat as success
-		} else {
-			log.Println(err)
-			w.WriteHeader(500)
+			attache.Success()
 		}
-		return
+		
+		attache.ErrorFatal(err)
 	}
 
 	if err := c.DB.Delete(target); err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		return
+		attache.ErrorFatal(err)
 	}
 
 	w.WriteHeader(200)

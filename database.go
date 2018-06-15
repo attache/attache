@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"log"
+	"reflect"
 	"strings"
 	"sync"
 )
@@ -34,6 +34,10 @@ type (
 type (
 	BeforeDeleter interface{ BeforeDelete() (err error) }
 	AfterDeleter  interface{ AfterDelete(sql.Result) }
+)
+
+var (
+	tStorable = reflect.TypeOf((*Storable)(nil)).Elem()
 )
 
 type dbCache struct {
@@ -200,34 +204,39 @@ func (d DB) Delete(s Storable) error {
 	return nil
 }
 
+func (d DB) All(newFn func() Storable) ([]Storable, error) {
+	storable := newFn()
+	cols, _ := storable.Select()
+	result := make([]Storable, 0, 64)
+	query := selectQuery(cols, storable.Table(), nil, false, 0)
+
+	rows, err := d.conn.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		into := newFn()
+		_, targs := into.Select()
+		if err := rows.Scan(targs...); err != nil {
+			return nil, err
+		}
+		result = append(result, into)
+	}
+
+	if len(result) == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	return result, nil
+}
+
 func (d DB) Find(into Storable, args ...interface{}) error {
 	cols, targets := into.Select()
-
-	query := new(bytes.Buffer)
-	query.WriteString("SELECT ")
-	for i, name := range cols {
-		if i != 0 {
-			query.WriteString(", ")
-		}
-
-		query.WriteString(name)
-	}
-
-	query.WriteString(" FROM ")
-	query.WriteString(into.Table())
-	query.WriteString(" WHERE ")
-	for i, name := range into.KeyColumns() {
-		if i != 0 {
-			query.WriteString(" AND ")
-		}
-
-		fmt.Fprintf(query, "%s=?", name)
-	}
-	query.WriteString(" LIMIT 1")
-
-	log.Println(query.String())
-
-	rows, err := d.conn.Query(query.String(), args...)
+	query := selectQuery(cols, into.Table(), into.KeyColumns(), false, 1)
+	rows, err := d.conn.Query(query, args...)
 	if err != nil {
 		return err
 	}
@@ -243,7 +252,19 @@ func (d DB) Find(into Storable, args ...interface{}) error {
 
 func (d DB) FindBy(into Storable, field string, val interface{}) error {
 	cols, targets := into.Select()
+	query := selectQuery(cols, into.Table(), []string{field}, false, 1)
+	rows, err := d.conn.Query(query, val)
+	if err != nil {
+		return err
+	}
 
+	defer rows.Close()
+
+	rows.Next()
+	return rows.Scan(targets...)
+}
+
+func selectQuery(cols []string, table string, searchFields []string, or bool, limit int) string {
 	query := new(strings.Builder)
 	query.WriteString("SELECT ")
 	for i, name := range cols {
@@ -255,18 +276,26 @@ func (d DB) FindBy(into Storable, field string, val interface{}) error {
 	}
 
 	query.WriteString(" FROM ")
-	query.WriteString(into.Table())
-	query.WriteString(" WHERE ")
-	fmt.Fprintf(query, "%s=?", field)
-	query.WriteString(" LIMIT 1")
+	query.WriteString(table)
+	if len(searchFields) > 0 {
+		query.WriteString(" WHERE ")
+		for i, field := range searchFields {
+			if i != 0 {
+				if or {
+					query.WriteString(" OR ")
+				} else {
+					query.WriteString(" AND ")
+				}
+			}
 
-	rows, err := d.conn.Query(query.String(), val)
-	if err != nil {
-		return err
+			fmt.Fprintf(query, "%s=?", field)
+		}
 	}
 
-	defer rows.Close()
+	if limit > 0 {
+		fmt.Fprintf(query, " LIMIT %d", limit)
+	}
 
-	rows.Next()
-	return rows.Scan(targets...)
+	query.WriteByte(';')
+	return query.String()
 }

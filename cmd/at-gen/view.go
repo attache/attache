@@ -14,10 +14,12 @@ type View struct {
 func viewsFor(m *Model) []View {
 	createForm := template.Must(template.New("").Delims("[[", "]]").Parse(createFormTemplate))
 	updateForm := template.Must(template.New("").Delims("[[", "]]").Parse(updateFormTemplate))
+	listView := template.Must(template.New("").Delims("[[", "]]").Parse(listViewTemplate))
 
 	var (
 		create = &strings.Builder{}
 		update = &strings.Builder{}
+		list   = &strings.Builder{}
 	)
 
 	if err := createForm.Execute(create, m); err != nil {
@@ -25,6 +27,10 @@ func viewsFor(m *Model) []View {
 	}
 
 	if err := updateForm.Execute(update, m); err != nil {
+		panic(err)
+	}
+
+	if err := listView.Execute(list, m); err != nil {
 		panic(err)
 	}
 
@@ -37,6 +43,11 @@ func viewsFor(m *Model) []View {
 		View{
 			File: filepath.Join("views", m.Table, "update.tpl"),
 			Body: update.String(),
+		},
+
+		View{
+			File: filepath.Join("views", m.Table, "list.tpl"),
+			Body: list.String(),
 		},
 	}
 }

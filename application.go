@@ -52,6 +52,8 @@ type Application struct {
 }
 
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	defer a.recover(w, r)
+
 	ctx := reflect.New(a.contextType)
 
 	ictx := ctx.Interface()
@@ -82,6 +84,26 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.router.ServeHTTP(w, r.WithContext(
 		context.WithValue(r.Context(), ctxContextKey, ctx),
 	))
+}
+
+func (*Application) recover(w http.ResponseWriter, r *http.Request) {
+	val := recover()
+	if val == nil {
+		return
+	}
+
+	if impl, ok := val.(http.Handler); ok {
+		impl.ServeHTTP(w, r)
+		return
+	}
+
+	if fn, ok := val.(http.HandlerFunc); ok {
+		fn(w, r)
+		return
+	}
+
+	log.Println("recovered: panic:", val)
+	httpResult{500, ""}.ServeHTTP(w, r)
 }
 
 func (a *Application) Run() error { return http.ListenAndServe(":8080", a) }
