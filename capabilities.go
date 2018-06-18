@@ -10,3 +10,11 @@ type HasDB interface {
 	DBString() string
 	SetDB(*DB)
 }
+
+type HasFileServer interface {
+	FileServer() (dir, path string)
+}
+
+type HasMiddleware interface {
+	Middleware() Middlewares
+}

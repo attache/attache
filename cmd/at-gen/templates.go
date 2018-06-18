@@ -78,17 +78,17 @@ func (m *{{.Name}}) KeyValues() []interface{} { return []interface{}{
 var createFormTemplate = `
 {{define "title"}}New [[.Name]]{{end}}
 {{define "body"}}
-	<h1>New [[.Name]]</h1>
-	<form name="new_[[.Table]]" method="post" action="/[[.Table]]/new">
-	[[range .Fields]]
-		[[- if not .NoInsert]]
-		<div>
+	<form name="new_[[.Table]]" method="post" action="/[[.Table]]/new" class="pure-form pure-form-stacked">
+		<fieldset>
+			<legend>New [[.Name]]</legend>
+			[[range .Fields]]
+			[[- if not .NoInsert]]
 			<label for="[[.StructField]]">[[.StructField]]</label>
 			<input type="text" name="[[.StructField]]" />
-		</div>
-		[[end -]]
-	[[end]]
-		<input type="submit" value="Create"/>
+			[[- end -]]
+			[[end]]
+			<input type="submit" value="Create" class="pure-button pure-button-primary"/>
+		</fieldset>
 	</form>
 {{end}}
 `
@@ -96,17 +96,20 @@ var createFormTemplate = `
 var updateFormTemplate = `
 {{define "title"}}Edit [[.Name]]{{end}}
 {{define "body"}}
-	<h1>Edit [[.Name]]</h1>
-	<form name="edit_[[.Table]]" method="post" action="/[[.Table]]?id={{.[[.KeyStructField]]}}">
-	[[range .Fields]]
-		[[- if not .NoUpdate]]
-		<div>
+	<form name="edit_[[.Table]]" method="post" action="/[[.Table]]?id={{.[[.KeyStructField]]}}" class="pure-form pure-form-stacked">
+		<fieldset>
+			<legend>Edit [[.Name]]</legend>
+			[[range .Fields]]
+			[[- if not .NoUpdate]]
 			<label for="[[.StructField]]">[[.StructField]]</label>
 			<input type="text" name="[[.StructField]]" value="{{.[[.StructField]]}}" [[if .Key]]readonly="true"[[end]]/>
-		</div>
-		[[end -]]
-	[[end]]
-		<input type="submit" value="Update"/>
+			[[- else]]
+			<label>[[.StructField]]</label>
+			<input type="text" value="{{.[[.StructField]]}}" readonly="true"/>
+			[[- end -]]
+			[[end]]
+			<input type="submit" value="Update" class="pure-button pure-button-primary"/>
+		</fieldset>
 	</form>
 {{end}}
 `
@@ -115,33 +118,33 @@ var listViewTemplate = `
 {{define "title"}}[[.Name]] List{{end}}
 {{define "body"}}
 <h1>[[.Name]] List</h1>
-<table>
+<table class="pure-table pure-table-bordered">
 	<thead>
 		<tr>
-		[[range .Fields]]
+		[[- range .Fields]]
 			[[- if not .NoSelect]]
 			<th>[[.StructField]]</th>
-			[[end -]]
-		[[end]]
+			[[- end -]]
+		[[- end]]
 		</tr>
 	</thead>
 	<tbody>
 	{{range .}}
 		<tr>
-		[[$table := .Table]]
-		[[range .Fields]]
+		[[- $table := .Table]]
+		[[- range .Fields]]
 			[[- if not .NoSelect]]
-			[[- if .Key ]]
-			<td><a href="/[[$table]]?id={{.[[.StructField]]}}">{{.[[.StructField]]}}</a></td>
-			[[else]]
-			<td>{{.[[.StructField]]}}</td>
-			[[end -]]
-			[[end -]]
-		[[end]]
-		<tr>
+			<td>
+				[[- if .Key -]]<a href="/[[$table]]?id={{.[[.StructField]]}}">[[- end -]]
+				{{.[[.StructField]]}}
+				[[- if .Key -]]</a>[[- end -]]
+			</td>
+			[[- end -]]
+		[[- end]]
+		</tr>
 	{{end}}
 	</tbody>
-<table>
+</table>
 {{end}}
 `
 
@@ -205,7 +208,7 @@ func (c *Ctx) POST_{{.Name}}New(w http.ResponseWriter, r *http.Request) {
 		attache.ErrorFatal(err)
 	}
 
-	attache.RedirectPage(fmt.Sprintf("/{{.Table}}?id=%d", target.{{.KeyStructField}}))
+	attache.RedirectPage(fmt.Sprintf("/{{.Table}}?id=%v", target.{{.KeyStructField}}))
 }
 
 func (c *Ctx) POST_{{.Name}}(w http.ResponseWriter, r *http.Request) {
@@ -227,7 +230,7 @@ func (c *Ctx) POST_{{.Name}}(w http.ResponseWriter, r *http.Request) {
 		attache.ErrorFatal(err)
 	}
 
-	attache.RedirectPage(fmt.Sprintf("/{{.Table}}?id=%d", target.{{.KeyStructField}}))
+	attache.RedirectPage(fmt.Sprintf("/{{.Table}}?id=%v", target.{{.KeyStructField}}))
 }
 
 func (c *Ctx) DELETE_{{.Name}}(w http.ResponseWriter, r *http.Request) {

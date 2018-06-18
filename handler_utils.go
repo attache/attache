@@ -4,14 +4,21 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"runtime"
 )
 
 func Error(code int) { ErrorMessage(code, "") }
 
 func ErrorFatal(err error) {
-	_, file, line, _ := runtime.Caller(1)
-	log.Println("fatal:", file, line, err)
+	_, file, line, ok := runtime.Caller(1)
+
+	if ok {
+		log.Printf("fatal: %s:%d %s", filepath.Base(file), line, err)
+	} else {
+		log.Println("fatal: (unknown loc)", err)
+	}
+
 	Error(500)
 }
 

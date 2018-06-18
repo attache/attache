@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 	"sync"
@@ -63,7 +64,7 @@ type DB struct {
 	conn *sql.DB
 }
 
-func openDB(driver, dsn string) (*DB, error) {
+func dbFor(driver, dsn string) (*DB, error) {
 	key := driver + ":" + dsn
 
 	if db := global_dbConns.lookup(key); db != nil {
@@ -89,10 +90,12 @@ func openDB(driver, dsn string) (*DB, error) {
 }
 
 func (d DB) Exec(query string, args ...interface{}) (sql.Result, error) {
+	sqlLog(query, args)
 	return d.conn.Exec(query, args...)
 }
 
 func (d DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
+	sqlLog(query, args)
 	return d.conn.Query(query, args...)
 }
 
@@ -124,7 +127,7 @@ func (d DB) Insert(s Storable) error {
 		}
 	}
 
-	result, err := d.conn.Exec(query.String(), vals...)
+	result, err := d.Exec(query.String(), vals...)
 	if err != nil {
 		return err
 	}
@@ -138,7 +141,6 @@ func (d DB) Insert(s Storable) error {
 
 func (d DB) Update(s Storable) error {
 	cols, vals := s.Update()
-
 	query := new(bytes.Buffer)
 	fmt.Fprintf(query, "UPDATE %s SET ", s.Table())
 	for i, name := range cols {
@@ -163,7 +165,7 @@ func (d DB) Update(s Storable) error {
 		}
 	}
 
-	result, err := d.conn.Exec(query.String(), append(vals, s.KeyValues()...)...)
+	result, err := d.Exec(query.String(), append(vals, s.KeyValues()...)...)
 	if err != nil {
 		return err
 	}
@@ -193,7 +195,7 @@ func (d DB) Delete(s Storable) error {
 		}
 	}
 
-	result, err := d.conn.Exec(query.String(), s.KeyValues()...)
+	result, err := d.Exec(query.String(), s.KeyValues()...)
 	if err != nil {
 		return err
 	}
@@ -210,8 +212,7 @@ func (d DB) All(newFn func() Storable) ([]Storable, error) {
 	cols, _ := storable.Select()
 	result := make([]Storable, 0, 64)
 	query := selectQuery(cols, storable.Table(), nil, false, 0)
-
-	rows, err := d.conn.Query(query)
+	rows, err := d.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -237,7 +238,7 @@ func (d DB) All(newFn func() Storable) ([]Storable, error) {
 func (d DB) Find(into Storable, args ...interface{}) error {
 	cols, targets := into.Select()
 	query := selectQuery(cols, into.Table(), into.KeyColumns(), false, 1)
-	rows, err := d.conn.Query(query, args...)
+	rows, err := d.Query(query, args...)
 	if err != nil {
 		return err
 	}
@@ -254,7 +255,7 @@ func (d DB) Find(into Storable, args ...interface{}) error {
 func (d DB) FindBy(into Storable, field string, val interface{}) error {
 	cols, targets := into.Select()
 	query := selectQuery(cols, into.Table(), []string{field}, false, 1)
-	rows, err := d.conn.Query(query, val)
+	rows, err := d.Query(query, val)
 	if err != nil {
 		return err
 	}
@@ -302,4 +303,8 @@ func selectQuery(cols []string, table string, searchFields []string, or bool, li
 
 	query.WriteByte(';')
 	return query.String()
+}
+
+func sqlLog(query string, args []interface{}) {
+	log.Println("SQL:", query, args)
 }

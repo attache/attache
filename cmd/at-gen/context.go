@@ -7,10 +7,14 @@ import (
 )
 
 type Context struct {
-	Model    *Model
-	Views    []View
-	NoViews  bool
-	NoRoutes bool
+	Model *Model
+	Views []View
+
+	DoViews  bool
+	DoRoutes bool
+	DoModel  bool
+
+	Replace bool
 }
 
 type fieldDefs []string
@@ -26,11 +30,15 @@ func (c *Context) Init() {
 		}
 	}()
 
-	noViews := flag.Bool("noviews", false, "disables generation of views")
-	noRoutes := flag.Bool("noroutes", false, "disables generation of routes")
+	all := flag.Bool("a", false, "geneate models, views, and routes")
+	flag.BoolVar(&c.DoModel, "model", false, "generate model")
+	flag.BoolVar(&c.DoViews, "views", false, "generate views")
+	flag.BoolVar(&c.DoRoutes, "routes", false, "generate routes")
+	flag.BoolVar(&c.Replace, "replace", false, "replace existing files")
 	name := flag.String("n", "", "name of the resource")
 	defs := &fieldDefs{}
 	flag.Var(defs, "f", "-f NAME:TYPE:FLAGs [...]")
+
 	flag.Parse()
 
 	if *name == "" {
@@ -41,10 +49,17 @@ func (c *Context) Init() {
 		panic("must specify at least one field")
 	}
 
-	c.NoViews = *noViews
-	c.NoRoutes = *noRoutes
+	if *all {
+		c.DoModel = true
+		c.DoViews = true
+		c.DoRoutes = true
+	}
+
+	// needed for more than just model
 	c.Model = buildModel(*name, "", *defs)
-	if !*noViews {
+
+	if c.DoViews {
 		c.Views = viewsFor(c.Model)
 	}
+
 }

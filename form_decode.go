@@ -6,6 +6,10 @@ import (
 
 var global_formDecoder = schema.NewDecoder()
 
+func init() {
+	global_formDecoder.IgnoreUnknownKeys(true)
+}
+
 func FormDecode(dst interface{}, src map[string][]string) error {
 	return global_formDecoder.Decode(dst, src)
 }

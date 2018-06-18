@@ -2,9 +2,12 @@ package attache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -15,16 +18,17 @@ import (
 )
 
 type (
+	Middlewares = chi.Middlewares
 	HandlerFunc = http.HandlerFunc
-	RenderFunc  func(*http.Request) ([]byte, error)
+
+	RenderFunc         func(*http.Request) ([]byte, error)
+	MiddlewareProvider func() Middlewares
 )
 
 func (fn RenderFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	data, err := fn(r)
 	if err != nil {
-		log.Println(err)
-		w.WriteHeader(500)
-		return
+		ErrorFatal(err)
 	}
 
 	w.Header().Set("Content-Type", "text/html")
@@ -32,17 +36,35 @@ func (fn RenderFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 var (
-	tHandlerFunc = reflect.TypeOf((*HandlerFunc)(nil)).Elem()
-	tRenderFunc  = reflect.TypeOf((*RenderFunc)(nil)).Elem()
+	tHandlerFunc        = reflect.TypeOf((*HandlerFunc)(nil)).Elem()
+	tRenderFunc         = reflect.TypeOf((*RenderFunc)(nil)).Elem()
+	tMiddlewareProvider = reflect.TypeOf((*MiddlewareProvider)(nil)).Elem()
 )
 
-var ctxContextKey = struct{ x int }{0xfeef}
+type reflectFn struct {
+	index int
+	typ   reflect.Type
+}
 
-func reflectCall(method int, convertTo reflect.Type) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		fn := r.Context().Value(ctxContextKey).(reflect.Value).Method(method)
-		fn.Convert(convertTo).Interface().(http.Handler).ServeHTTP(w, r)
+func (f reflectFn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	r.Context().
+		Value(ctxContextKey).(reflect.Value).
+		Method(f.index).
+		Convert(f.typ).
+		Interface().(http.Handler).
+		ServeHTTP(w, r)
+}
+
+type mwlist []http.Handler
+
+func (x mwlist) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	for _, h := range x {
+		h.ServeHTTP(w, r)
 	}
+}
+
+func reffn(method int, convertTo reflect.Type) http.Handler {
+	return reflectFn{index: method, typ: convertTo}
 }
 
 type Application struct {
@@ -54,34 +76,43 @@ type Application struct {
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := reflect.New(a.contextType)
 
-	ictx := ctx.Interface().(Context)
-
-	// initialize context
-	ictx.Init(w, r)
-
-	// initialize views when context has view capability
-	if impl, ok := ictx.(HasViews); ok {
-		views, err := viewsForRoot(impl.ViewRoot())
-		if err != nil {
-			panic(err)
-		}
-		impl.SetViews(views)
-	}
-
-	// initialize db when context has db capability
-	if impl, ok := ictx.(HasDB); ok {
-		db, err := openDB(impl.DBDriver(), impl.DBString())
-		if err != nil {
-			panic(err)
-		}
-
-		impl.SetDB(db)
+	// initialize the context, or die with 500
+	if err := initContextInstance(ctx.Interface().(Context), w, r); err != nil {
+		log.Println(err)
+		httpResult{code: 500}.ServeHTTP(w, r)
+		return
 	}
 
 	// store context and execute handlers
 	a.router.ServeHTTP(w, r.WithContext(
 		context.WithValue(r.Context(), ctxContextKey, ctx),
 	))
+}
+
+func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) error {
+	// initialize views when context has view capability
+	if impl, ok := ictx.(HasViews); ok {
+		views, err := viewsForRoot(impl.ViewRoot())
+		if err != nil {
+			return err
+		}
+		impl.SetViews(views)
+	}
+
+	// initialize db when context has db capability
+	if impl, ok := ictx.(HasDB); ok {
+		db, err := dbFor(impl.DBDriver(), impl.DBString())
+		if err != nil {
+			return err
+		}
+
+		impl.SetDB(db)
+	}
+
+	// initialize context
+	ictx.Init(w, r)
+
+	return nil
 }
 
 func (a *Application) recoveryMiddleware(h http.Handler) http.Handler {
@@ -102,16 +133,16 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if fn, ok := val.(http.HandlerFunc); ok {
-		fn(w, r)
-		return
-	}
-
 	log.Println("recovered: panic:", val)
-	httpResult{500, ""}.ServeHTTP(w, r)
+	httpResult{code: 500}.ServeHTTP(w, r)
 }
 
 func (a *Application) Run() error { return http.ListenAndServe(":8080", a) }
+
+var (
+	methodRx     = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
+	middlewareRx = regexp.MustCompile(`^USE_(.*)$`)
+)
 
 func Bootstrap(ctxType Context) (*Application, error) {
 	var (
@@ -122,14 +153,108 @@ func Bootstrap(ctxType Context) (*Application, error) {
 		}
 	)
 
-	a.router.Use(middleware.DefaultLogger)
-	a.router.Use(a.recoveryMiddleware)
-
 	if t.Kind() != reflect.Ptr || t.Elem().Kind() != reflect.Struct {
 		return nil, fmt.Errorf("expecting pointer to a struct, got %T", ctxType)
 	}
 
 	a.contextType = t.Elem()
+
+	if err := bootstrapTryContextInit(ctxType); err != nil {
+		return nil, err
+	}
+
+	if err := bootstrapMiddleware(&a, ctxType); err != nil {
+		return nil, err
+	}
+
+	if err := bootstrapFileServer(&a, ctxType); err != nil {
+		return nil, err
+	}
+
+	if err := bootstrapRoutes(&a, ctxType); err != nil {
+		return nil, err
+	}
+
+	return &a, nil
+}
+
+func bootstrapTryContextInit(impl Context) error {
+	// attempt to load views, if supported by context
+	if impl, ok := impl.(HasViews); ok {
+		_, err := viewsForRoot(impl.ViewRoot())
+		if err != nil {
+			return BootstrapError{Cause: err, Phase: "init views"}
+		}
+	}
+
+	// attempt db connection, if supported by context
+	if impl, ok := impl.(HasDB); ok {
+		_, err := dbFor(impl.DBDriver(), impl.DBString())
+		if err != nil {
+			return BootstrapError{Cause: err, Phase: "init database"}
+		}
+	}
+
+	return nil
+}
+
+func bootstrapMiddleware(a *Application, impl Context) error {
+	stack := Middlewares{
+		middleware.DefaultLogger,
+		a.recoveryMiddleware,
+	}
+
+	if impl, ok := impl.(HasMiddleware); ok {
+		stack = append(stack, impl.Middleware()...)
+	}
+
+	a.router.Use(stack...)
+
+	return nil
+}
+
+func bootstrapFileServer(a *Application, impl Context) error {
+	if impl, ok := impl.(HasFileServer); ok {
+		dir, basePath := impl.FileServer()
+
+		info, err := os.Stat(dir)
+		if err != nil {
+			return BootstrapError{
+				Cause: err,
+				Phase: "init file server",
+			}
+		}
+
+		if !info.IsDir() {
+			return BootstrapError{
+				Cause: fmt.Errorf("bootstrap: static files: %s is not a directory", dir),
+				Phase: "init file server",
+			}
+		}
+
+		basePath = path.Join("/", basePath)
+
+		if basePath != "/" {
+			a.router.Handle(
+				basePath,
+				http.StripPrefix(
+					basePath,
+					http.FileServer(http.Dir(dir)),
+				),
+			)
+		} else {
+			a.router.Handle(basePath, http.FileServer(http.Dir(dir)))
+		}
+	}
+	return nil
+}
+
+func bootstrapRoutes(a *Application, impl Context) error {
+	var (
+		v     = reflect.ValueOf(impl)
+		t     = v.Type()
+		found = 0
+	)
 
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
@@ -138,6 +263,8 @@ func Bootstrap(ctxType Context) (*Application, error) {
 		if match == nil {
 			continue
 		}
+
+		found++
 
 		meth, path := match[1], pathForName(match[2])
 
@@ -151,18 +278,41 @@ func Bootstrap(ctxType Context) (*Application, error) {
 		}
 
 		if convertTo != nil {
+			list := make(mwlist, 0, 3)
+
+			if m, ok := t.MethodByName("BEFORE_" + match[2]); ok {
+				mtyp := v.Method(m.Index).Type()
+				if mtyp.ConvertibleTo(tHandlerFunc) {
+					list = append(list, reffn(m.Index, tHandlerFunc))
+				}
+			}
+
+			list = append(list, reffn(i, convertTo))
+
+			if m, ok := t.MethodByName("AFTER_" + match[2]); ok {
+				mtyp := v.Method(m.Index).Type()
+				if mtyp.ConvertibleTo(tHandlerFunc) {
+					list = append(list, reffn(m.Index, tHandlerFunc))
+				}
+			}
+
 			if meth == "ALL" {
-				a.router.Handle(path, reflectCall(i, convertTo))
+				a.router.Handle(path, list)
 			} else {
-				a.router.Method(meth, path, reflectCall(i, convertTo))
+				a.router.Method(meth, path, list)
 			}
 		}
 	}
 
-	return &a, nil
-}
+	if found == 0 {
+		return BootstrapError{
+			Phase: "register routes",
+			Cause: errors.New("no routes found"),
+		}
+	}
 
-var methodRx = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
+	return nil
+}
 
 func pathForName(name string) string {
 	// sanitize name
