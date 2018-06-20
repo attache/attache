@@ -1,6 +1,8 @@
 package attache
 
-import "net/http"
+import (
+	"net/http"
+)
 
 var ctxContextKey = struct{ x int }{0xfeef}
 

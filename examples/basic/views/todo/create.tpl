@@ -1,19 +1,14 @@
-
 {{define "title"}}New Todo{{end}}
 {{define "body"}}
-	<h1>New Todo</h1>
-	<form name="new_todo" method="post" action="/todo/new">
-	
-		<div>
+	<form name="new_todo" method="post" action="/todo/new" class="pure-form pure-form-stacked">
+		<fieldset>
+			<legend>New Todo</legend>
+			
 			<label for="Title">Title</label>
 			<input type="text" name="Title" />
-		</div>
-		
-		<div>
-			<label for="Body">Body</label>
-			<input type="text" name="Body" />
-		</div>
-		
-		<input type="submit" value="Create"/>
+			<label for="Details">Details</label>
+			<input type="text" name="Details" />
+			<input type="submit" value="Create" class="pure-button pure-button-primary"/>
+		</fieldset>
 	</form>
 {{end}}

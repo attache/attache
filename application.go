@@ -76,8 +76,10 @@ type Application struct {
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx := reflect.New(a.contextType)
 
+	ictx := ctx.Interface().(Context)
+
 	// initialize the context, or die with 500
-	if err := initContextInstance(ctx.Interface().(Context), w, r); err != nil {
+	if err := initContextInstance(ictx, w, r); err != nil {
 		log.Println(err)
 		httpResult{code: 500}.ServeHTTP(w, r)
 		return
@@ -92,7 +94,7 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) error {
 	// initialize views when context has view capability
 	if impl, ok := ictx.(HasViews); ok {
-		views, err := viewsForRoot(impl.ViewRoot())
+		views, err := gsCache.viewsFor(impl.CONFIG_Views())
 		if err != nil {
 			return err
 		}
@@ -101,12 +103,34 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 
 	// initialize db when context has db capability
 	if impl, ok := ictx.(HasDB); ok {
-		db, err := dbFor(impl.DBDriver(), impl.DBString())
+		db, err := gsCache.dbFor(impl.CONFIG_DB())
 		if err != nil {
 			return err
 		}
 
 		impl.SetDB(db)
+	}
+
+	if impl, ok := ictx.(HasToken); ok {
+		t := Token{
+			conf: impl.CONFIG_Token(),
+			Header: TokenHeader{
+				Alg: "HS256",
+				Typ: "JWT",
+			},
+			Claims: TokenClaims{},
+		}
+
+		cookie, _ := r.Cookie(t.conf.Cookie)
+
+		if cookie != nil {
+			if err := t.Decode([]byte(cookie.Value)); err != nil {
+				t.ClearCookie(w)
+				log.Println(err)
+			}
+		}
+
+		impl.SetToken(t)
 	}
 
 	// initialize context
@@ -181,7 +205,7 @@ func Bootstrap(ctxType Context) (*Application, error) {
 func bootstrapTryContextInit(impl Context) error {
 	// attempt to load views, if supported by context
 	if impl, ok := impl.(HasViews); ok {
-		_, err := viewsForRoot(impl.ViewRoot())
+		_, err := gsCache.viewsFor(impl.CONFIG_Views())
 		if err != nil {
 			return BootstrapError{Cause: err, Phase: "init views"}
 		}
@@ -189,9 +213,22 @@ func bootstrapTryContextInit(impl Context) error {
 
 	// attempt db connection, if supported by context
 	if impl, ok := impl.(HasDB); ok {
-		_, err := dbFor(impl.DBDriver(), impl.DBString())
+		_, err := gsCache.dbFor(impl.CONFIG_DB())
 		if err != nil {
 			return BootstrapError{Cause: err, Phase: "init database"}
+		}
+	}
+
+	// examine token config for validity
+	if impl, ok := impl.(HasToken); ok {
+		conf := impl.CONFIG_Token()
+
+		if len(conf.Secret) == 0 {
+			return BootstrapError{Cause: errors.New("empty secret"), Phase: "check token config"}
+		}
+
+		if len(conf.Cookie) == 0 {
+			return BootstrapError{Cause: errors.New("empty cookie"), Phase: "check token config"}
 		}
 	}
 
@@ -215,9 +252,8 @@ func bootstrapMiddleware(a *Application, impl Context) error {
 
 func bootstrapFileServer(a *Application, impl Context) error {
 	if impl, ok := impl.(HasFileServer); ok {
-		dir, basePath := impl.FileServer()
-
-		info, err := os.Stat(dir)
+		conf := impl.CONFIG_FileServer()
+		info, err := os.Stat(conf.Root)
 		if err != nil {
 			return BootstrapError{
 				Cause: err,
@@ -227,25 +263,22 @@ func bootstrapFileServer(a *Application, impl Context) error {
 
 		if !info.IsDir() {
 			return BootstrapError{
-				Cause: fmt.Errorf("bootstrap: static files: %s is not a directory", dir),
+				Cause: fmt.Errorf("bootstrap: static files: %s is not a directory", conf.Root),
 				Phase: "init file server",
 			}
 		}
 
-		basePath = path.Join("/", basePath)
+		basePath := path.Join("/", conf.BasePath)
 
-		if basePath != "/" {
-			a.router.Handle(
+		a.router.Handle(
+			path.Join(basePath, "*"),
+			http.StripPrefix(
 				basePath,
-				http.StripPrefix(
-					basePath,
-					http.FileServer(http.Dir(dir)),
-				),
-			)
-		} else {
-			a.router.Handle(basePath, http.FileServer(http.Dir(dir)))
-		}
+				http.FileServer(http.Dir(conf.Root)),
+			),
+		)
 	}
+
 	return nil
 }
 

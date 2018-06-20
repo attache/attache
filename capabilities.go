@@ -1,20 +1,27 @@
 package attache
 
 type HasViews interface {
-	ViewRoot() string
+	CONFIG_Views() ViewConfig
+	Views() ViewCache
 	SetViews(ViewCache)
 }
 
 type HasDB interface {
-	DBDriver() string
-	DBString() string
-	SetDB(*DB)
+	CONFIG_DB() DBConfig
+	DB() DB
+	SetDB(DB)
 }
 
 type HasFileServer interface {
-	FileServer() (dir, path string)
+	CONFIG_FileServer() FileServerConfig
 }
 
 type HasMiddleware interface {
 	Middleware() Middlewares
+}
+
+type HasToken interface {
+	CONFIG_Token() TokenConfig
+	Token() Token
+	SetToken(t Token)
 }

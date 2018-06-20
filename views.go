@@ -7,46 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"html/template"
 )
-
-type vcCache struct {
-	sync.RWMutex
-	have map[string]ViewCache
-}
-
-func (v *vcCache) lookupOk(key string) (ViewCache, bool) {
-	v.RLock()
-	defer v.RUnlock()
-	got, ok := v.have[key]
-	return got, ok
-}
-
-func (v *vcCache) put(key string, vc ViewCache) {
-	v.Lock()
-	defer v.Unlock()
-	v.have[key] = vc
-}
-
-var global_viewCaches = vcCache{have: make(map[string]ViewCache, 1)}
-
-func viewsForRoot(root string) (ViewCache, error) {
-	root = filepath.Clean(root)
-
-	if cached, ok := global_viewCaches.lookupOk(root); ok {
-		return cached, nil
-	}
-
-	v := ViewCache{cache: map[string]View{}}
-	if err := v.load(root, "", nil); err != nil {
-		return v, err
-	}
-
-	global_viewCaches.put(root, v)
-	return v, nil
-}
 
 type View interface {
 	Execute(out io.Writer, data interface{}) error
@@ -56,26 +19,29 @@ type noopView struct{}
 
 func (noopView) Execute(_ io.Writer, _ interface{}) error { return nil }
 
-type ViewCache struct{ cache map[string]View }
+type ViewCache interface {
+	Get(name string) View
+	Has(name string) (ok bool)
+	Render(name string, data interface{}) ([]byte, error)
 
-func (v ViewCache) Lookup(name string) (view View, ok bool) {
-	if v.cache == nil {
-		return noopView{}, false
+	// ViewCache should not be implemented outside of this package
+	private()
+}
+type viewCache map[string]View
+
+func (v viewCache) private() {}
+
+func (v viewCache) Has(name string) (ok bool) { return v != nil && v[name] != nil }
+
+func (v viewCache) Get(name string) View {
+	if v.Has(name) {
+		return v[name]
 	}
 
-	if cached := v.cache[name]; cached != nil {
-		return cached, true
-	}
-
-	return noopView{}, false
+	return noopView{}
 }
 
-func (v ViewCache) Get(name string) (view View) {
-	view, _ = v.Lookup(name)
-	return
-}
-
-func (v ViewCache) Render(name string, data interface{}) ([]byte, error) {
+func (v viewCache) Render(name string, data interface{}) ([]byte, error) {
 	buf := getbuf()
 	defer putbuf(buf)
 
@@ -87,7 +53,7 @@ func (v ViewCache) Render(name string, data interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (v ViewCache) load(path, prefix string, layouts []string) error {
+func (v viewCache) load(path, prefix string, layouts []string) error {
 	stats, err := ioutil.ReadDir(path)
 	if err != nil {
 		return err
@@ -135,7 +101,7 @@ func (v ViewCache) load(path, prefix string, layouts []string) error {
 			tplName = fmt.Sprintf("%s.%s", prefix, strings.TrimSuffix(file.Name(), ".tpl"))
 		}
 
-		v.cache[tplName] = tpl
+		v[tplName] = tpl
 	}
 
 	for _, dir := range subdirs {

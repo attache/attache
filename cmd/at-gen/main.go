@@ -10,6 +10,8 @@ import (
 	"golang.org/x/tools/imports"
 )
 
+//go:generate go-bindata templates
+
 func main() {
 	log.SetFlags(0)
 
@@ -65,7 +67,7 @@ func main() {
 		buf.Reset()
 
 		// generate model file
-		tpl, err := template.New("").Parse(modelTemplate)
+		tpl, err := template.New("").Parse(MustAssetString("templates/model.tpl"))
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -93,7 +95,7 @@ func main() {
 	if ctx.DoRoutes {
 		buf.Reset()
 
-		tpl, err := template.New("").Parse(routeTemplate)
+		tpl, err := template.New("").Parse(MustAssetString("templates/routes.tpl"))
 		if err != nil {
 			log.Fatalln(err)
 		}

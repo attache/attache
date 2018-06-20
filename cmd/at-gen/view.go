@@ -12,9 +12,12 @@ type View struct {
 }
 
 func viewsFor(m *Model) []View {
-	createForm := template.Must(template.New("").Delims("[[", "]]").Parse(createFormTemplate))
-	updateForm := template.Must(template.New("").Delims("[[", "]]").Parse(updateFormTemplate))
-	listView := template.Must(template.New("").Delims("[[", "]]").Parse(listViewTemplate))
+	createForm := template.Must(template.New("").Delims("[[", "]]").
+		Parse(MustAssetString("templates/view_create.tpl")))
+	updateForm := template.Must(template.New("").Delims("[[", "]]").
+		Parse(MustAssetString("templates/view_update.tpl")))
+	listView := template.Must(template.New("").Delims("[[", "]]").
+		Parse(MustAssetString("templates/view_list.tpl")))
 
 	var (
 		create = &strings.Builder{}

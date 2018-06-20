@@ -7,7 +7,6 @@ import (
 	"log"
 	"reflect"
 	"strings"
-	"sync"
 )
 
 type Storable interface {
@@ -41,65 +40,43 @@ var (
 	tStorable = reflect.TypeOf((*Storable)(nil)).Elem()
 )
 
-type dbCache struct {
-	sync.RWMutex
-	have map[string]*DB
+type DB interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	Exec(query string, args ...interface{}) (sql.Result, error)
+
+	Insert(s Storable) error
+	Update(s Storable) error
+	Delete(s Storable) error
+	All(func() Storable) ([]Storable, error)
+	Find(into Storable, args ...interface{}) error
+	FindBy(into Storable, field string, val interface{}) error
+
+	private()
 }
 
-func (c *dbCache) lookup(key string) *DB {
-	c.RLock()
-	defer c.RUnlock()
-	return c.have[key]
-}
-
-func (c *dbCache) put(key string, db *DB) {
-	c.Lock()
-	defer c.Unlock()
-	c.have[key] = db
-}
-
-var global_dbConns = dbCache{have: make(map[string]*DB, 1)}
-
-type DB struct {
+type db struct {
 	conn *sql.DB
 }
 
-func dbFor(driver, dsn string) (*DB, error) {
-	key := driver + ":" + dsn
+func (d db) private() {}
 
-	if db := global_dbConns.lookup(key); db != nil {
-		if err := db.conn.Ping(); err != nil {
-			return nil, err
-		}
-
-		return db, nil
-	}
-
-	conn, err := sql.Open(driver, dsn)
-	if err != nil {
-		return nil, err
-	}
-
-	if err = conn.Ping(); err != nil {
-		return nil, err
-	}
-
-	db := &DB{conn: conn}
-	global_dbConns.put(key, db)
-	return db, nil
-}
-
-func (d DB) Exec(query string, args ...interface{}) (sql.Result, error) {
+func (d db) Exec(query string, args ...interface{}) (sql.Result, error) {
 	sqlLog(query, args)
 	return d.conn.Exec(query, args...)
 }
 
-func (d DB) Query(query string, args ...interface{}) (*sql.Rows, error) {
+func (d db) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	sqlLog(query, args)
 	return d.conn.Query(query, args...)
 }
 
-func (d DB) Insert(s Storable) error {
+func (d db) Insert(s Storable) error {
+	if impl, ok := s.(BeforeInserter); ok {
+		if err := impl.BeforeInsert(); err != nil {
+			return err
+		}
+	}
+
 	cols, vals := s.Insert()
 
 	query := new(bytes.Buffer)
@@ -121,12 +98,6 @@ func (d DB) Insert(s Storable) error {
 	}
 	query.WriteString(")")
 
-	if impl, ok := s.(BeforeInserter); ok {
-		if err := impl.BeforeInsert(); err != nil {
-			return err
-		}
-	}
-
 	result, err := d.Exec(query.String(), vals...)
 	if err != nil {
 		return err
@@ -139,7 +110,13 @@ func (d DB) Insert(s Storable) error {
 	return nil
 }
 
-func (d DB) Update(s Storable) error {
+func (d db) Update(s Storable) error {
+	if impl, ok := s.(BeforeUpdater); ok {
+		if err := impl.BeforeUpdate(); err != nil {
+			return err
+		}
+	}
+
 	cols, vals := s.Update()
 	query := new(bytes.Buffer)
 	fmt.Fprintf(query, "UPDATE %s SET ", s.Table())
@@ -159,12 +136,6 @@ func (d DB) Update(s Storable) error {
 		fmt.Fprintf(query, "%s=?", name)
 	}
 
-	if impl, ok := s.(BeforeUpdater); ok {
-		if err := impl.BeforeUpdate(); err != nil {
-			return err
-		}
-	}
-
 	result, err := d.Exec(query.String(), append(vals, s.KeyValues()...)...)
 	if err != nil {
 		return err
@@ -177,7 +148,13 @@ func (d DB) Update(s Storable) error {
 	return nil
 }
 
-func (d DB) Delete(s Storable) error {
+func (d db) Delete(s Storable) error {
+	if impl, ok := s.(BeforeDeleter); ok {
+		if err := impl.BeforeDelete(); err != nil {
+			return err
+		}
+	}
+
 	query := new(bytes.Buffer)
 	fmt.Fprintf(query, "DELETE FROM %s WHERE ", s.Table())
 
@@ -187,12 +164,6 @@ func (d DB) Delete(s Storable) error {
 		}
 
 		fmt.Fprintf(query, "%s=?", name)
-	}
-
-	if impl, ok := s.(BeforeDeleter); ok {
-		if err := impl.BeforeDelete(); err != nil {
-			return err
-		}
 	}
 
 	result, err := d.Exec(query.String(), s.KeyValues()...)
@@ -207,7 +178,7 @@ func (d DB) Delete(s Storable) error {
 	return nil
 }
 
-func (d DB) All(newFn func() Storable) ([]Storable, error) {
+func (d db) All(newFn func() Storable) ([]Storable, error) {
 	storable := newFn()
 	cols, _ := storable.Select()
 	result := make([]Storable, 0, 64)
@@ -235,7 +206,7 @@ func (d DB) All(newFn func() Storable) ([]Storable, error) {
 	return result, nil
 }
 
-func (d DB) Find(into Storable, args ...interface{}) error {
+func (d db) Find(into Storable, args ...interface{}) error {
 	cols, targets := into.Select()
 	query := selectQuery(cols, into.Table(), into.KeyColumns(), false, 1)
 	rows, err := d.Query(query, args...)
@@ -252,7 +223,7 @@ func (d DB) Find(into Storable, args ...interface{}) error {
 	return rows.Scan(targets...)
 }
 
-func (d DB) FindBy(into Storable, field string, val interface{}) error {
+func (d db) FindBy(into Storable, field string, val interface{}) error {
 	cols, targets := into.Select()
 	query := selectQuery(cols, into.Table(), []string{field}, false, 1)
 	rows, err := d.Query(query, val)
