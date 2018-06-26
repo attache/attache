@@ -54,7 +54,7 @@ type DefaultFileServer struct{}
 
 func (d DefaultFileServer) CONFIG_FileServer() FileServerConfig {
 	return FileServerConfig{
-		Root:     "public",
+		Root:     "web/dist",
 		BasePath: "web",
 	}
 }

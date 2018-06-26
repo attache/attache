@@ -55,10 +55,16 @@ func main() {
 				{Name: "index.tpl", BodyFunc: FileTemplate("index.tpl.tpl")},
 			}},
 			{Name: "models"},
-			{Name: "public", Dirs: []Dir{
-				{Name: "scripts"},
-				{Name: "styles"},
-				{Name: "html"},
+			{Name: "web", Dirs: []Dir{
+				{Name: "dist", Dirs: []Dir{
+					{Name: "js"},
+					{Name: "css"},
+					{Name: "img"},
+				}},
+				{Name: "src", Dirs: []Dir{
+					{Name: "script"},
+					{Name: "styles"},
+				}},
 			}},
 			{Name: "secret", Files: []File{
 				{Name: "schema.sql", Body: []byte("")},

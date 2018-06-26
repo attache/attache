@@ -10,11 +10,20 @@ import (
 )
 
 type Ctx struct {
+	// base context (required)
 	attache.BaseContext
+
+	// embedded capabilities
+	attache.DefaultDB
+	attache.DefaultViews
 }
 
-func (c *Ctx) DBDriver() string { return "sqlite3" }
-func (c *Ctx) DBString() string { return "test.db" }
+func (c *Ctx) CONFIG_DB() attache.DBConfig {
+	return attache.DBConfig{
+		Driver: "sqlite3",
+		DSN:    "test.db",
+	}
+}
 
 func (c *Ctx) Init(w http.ResponseWriter, r *http.Request) { /* nothing yet */ }
 

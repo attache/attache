@@ -8,6 +8,7 @@ import (
 )
 
 type Ctx struct {
+    attache.BaseContext // required
     attache.DefaultDB
     attache.DefaultViews
     attache.DefaultToken

@@ -1,19 +1,17 @@
 package attache
 
 import (
+	"reflect"
+
 	"github.com/gorilla/schema"
 )
 
-var global_formDecoder = schema.NewDecoder()
-
-func init() {
-	global_formDecoder.IgnoreUnknownKeys(true)
-}
+type FormConverter func(string) reflect.Value
 
 func FormDecode(dst interface{}, src map[string][]string) error {
-	return global_formDecoder.Decode(dst, src)
+	return gsFormDecoder.Decode(dst, src)
 }
 
-func FormConverter(val interface{}, converterFunc schema.Converter) {
-	global_formDecoder.RegisterConverter(val, converterFunc)
+func RegisterFormConverter(val interface{}, converterFunc FormConverter) {
+	gsFormDecoder.RegisterConverter(val, schema.Converter(converterFunc))
 }

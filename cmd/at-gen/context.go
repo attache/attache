@@ -30,12 +30,12 @@ func (c *Context) Init() {
 		}
 	}()
 
-	all := flag.Bool("a", false, "geneate models, views, and routes")
 	flag.BoolVar(&c.DoModel, "model", false, "generate model")
 	flag.BoolVar(&c.DoViews, "views", false, "generate views")
 	flag.BoolVar(&c.DoRoutes, "routes", false, "generate routes")
 	flag.BoolVar(&c.Replace, "replace", false, "replace existing files")
 	name := flag.String("n", "", "name of the resource")
+	table := flag.String("t", "", "name of table")
 	defs := &fieldDefs{}
 	flag.Var(defs, "f", "-f NAME:TYPE:FLAGs [...]")
 
@@ -49,14 +49,15 @@ func (c *Context) Init() {
 		panic("must specify at least one field")
 	}
 
-	if *all {
+	// if none specified, do all
+	if !c.DoModel && !c.DoViews && !c.DoRoutes {
 		c.DoModel = true
 		c.DoViews = true
 		c.DoRoutes = true
 	}
 
 	// needed for more than just model
-	c.Model = buildModel(*name, "", *defs)
+	c.Model = buildModel(*name, *table, *defs)
 
 	if c.DoViews {
 		c.Views = viewsFor(c.Model)
