@@ -36,10 +36,6 @@ func TestNodes(t *testing.T) {
 	dump(root, "")
 }
 
-func TestNodesFail(t *testing.T) {
-
-}
-
 func try(what string, t *testing.T, wantPanic bool, do func()) {
 	defer func() {
 		issue := recover()
