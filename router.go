@@ -1,6 +1,10 @@
 package attache
 
 import (
+	"net/http"
+	"reflect"
+	"strings"
+
 	"github.com/go-chi/chi"
 )
 
@@ -12,7 +16,7 @@ type router struct {
 	chi.Mux
 }
 
-type handler interface{}
+type handler = reflect.Value
 
 type node struct {
 	prefix string
@@ -66,7 +70,7 @@ func (n *node) insert(path string, list []handler, final bool) {
 				panic("can't insert to finalized node")
 			}
 
-			n.list = append(n.list, list)
+			n.list = append(n.list, list...)
 			n.final = final
 			return
 		}
@@ -84,7 +88,7 @@ func (n *node) insert(path string, list []handler, final bool) {
 	n.split(shared)
 
 	if shared == len(path) {
-		n.list = append(n.list, list)
+		n.list = append(n.list, list...)
 		n.final = final
 		return
 	}
@@ -124,4 +128,47 @@ func (n *node) findChild(b byte) *node { return n.skids[b] }
 func (n *node) addChild(prefix string, list []handler, final bool) {
 	label := prefix[0]
 	n.skids[label] = newnode(prefix, list, final)
+}
+
+type tree struct {
+	methods map[string]*node
+}
+
+func (t tree) put(method string, path string, list []handler, final bool) {
+	root := t.methods[method]
+	if root == nil {
+		root = newnode(path, list, final)
+		t.methods[method] = root
+		return
+	}
+
+	root.insert(path, list, final)
+}
+
+func (t tree) get(method, path string) []handler {
+	if got := t.methods[method].lookup(path); got != nil {
+		if got.final && len(got.list) > 0 {
+			return got.list
+		}
+	}
+
+	return nil
+}
+
+func (t tree) hasAny(path string) bool {
+	for _, m := range t.methods {
+		if got := m.lookup(path); got != nil && got.final {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (t tree) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	got := t.get(strings.ToUpper(r.Method), r.URL.Path)
+
+	for _, h := range got {
+		// TODO
+	}
 }
