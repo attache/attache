@@ -38,7 +38,7 @@ func (r *router) mount(path string, h http.Handler) {
 }
 
 func (r *router) handle(method, path string, s stack) {
-	path = canonicalize(path, true)
+	path = canonicalize(path, false)
 	method = strings.ToUpper(method)
 
 	err := r.root.insert(method, path, s, false)
@@ -103,17 +103,21 @@ func (n *node) lookup(remaining string) *node {
 
 	// matches all of n's prefix?
 	if shared == len(n.prefix) {
+		fmt.Println("consumed node", n.prefix)
 		// matches all of the remaining path?
 		if shared == len(remaining) || n.isLeaf() {
+			fmt.Println("found node", n.prefix)
 			// we've found a match
 			return n
 		}
 
 		// path remains, try to continue down the trie
 		remaining = remaining[shared:]
+		fmt.Println("finding child of ", n.prefix, "with", remaining)
 		return n.findChild(remaining[0]).lookup(remaining)
 	}
 
+	fmt.Println("no match for", remaining, "from", n.prefix, n.skids)
 	// regardless of whether we've matched the whole path remaining,
 	// we've fallen in the middle of a node and so we do not have a match
 	return nil

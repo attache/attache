@@ -14,4 +14,4 @@ type Context interface {
 
 type BaseContext struct{}
 
-func (b *BaseContext) embeddedBase() {}
+func (*BaseContext) embeddedBase() {}

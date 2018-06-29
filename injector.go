@@ -1,51 +1,49 @@
 package attache
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 )
 
 type injector struct {
-	ctx   Context
-	req   *http.Request
-	res   http.ResponseWriter
-	cache map[reflect.Type]reflect.Value
+	app *Application
+	ctx Context
+	req *http.Request
+	res http.ResponseWriter
 }
 
 var (
 	tRequest        = reflect.TypeOf((*http.Request)(nil))
 	tResponseWriter = reflect.TypeOf((*http.ResponseWriter)(nil)).Elem()
 	tContext        = reflect.TypeOf((*Context)(nil)).Elem()
-	tString         = reflect.TypeOf("")
 )
 
-func (i injector) getFor(typ reflect.Type, name string) reflect.Value {
-	if v := i.cache[typ]; v.IsValid() {
-		return v
-	}
-
+func (i injector) getFor(typ reflect.Type) reflect.Value {
+	fmt.Println(typ)
 	// special cases
 	switch true {
 	case typ == tRequest:
-		return i.putCache(tRequest, reflect.ValueOf(i.req))
+		return reflect.ValueOf(i.req)
 	case typ == tResponseWriter:
-		return i.putCache(tResponseWriter, reflect.ValueOf(i.res))
+		return reflect.ValueOf(i.res)
 	case typ == tContext:
-		return i.putCache(tContext, reflect.ValueOf(i.ctx))
-	case typ.Implements(tContext):
-		return i.putCache(typ, reflect.ValueOf(i.ctx))
-	case typ == tString:
-		// TODO continue
+		fallthrough
+	case typ.Kind() == reflect.Ptr && typ.Elem() == i.app.contextType:
+		fmt.Println("context")
+		return reflect.ValueOf(i.ctx)
 	}
 
 	// default
-	return i.putCache(typ, reflect.Zero(typ))
+	return reflect.Zero(typ)
 }
 
-func (i injector) putCache(
-	typ reflect.Type,
-	val reflect.Value,
-) reflect.Value {
-	i.cache[typ] = val
-	return val
+func (i *injector) apply(fn reflect.Value) {
+	typ := fn.Type()
+	args := make([]reflect.Value, typ.NumIn())
+	for x := 0; x < typ.NumIn(); x++ {
+		args[x] = i.getFor(typ.In(x))
+	}
+	// for now, ignore results
+	_ = fn.Call(args)
 }

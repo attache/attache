@@ -16,6 +16,7 @@ type Ctx struct {
 	// embedded capabilities
 	attache.DefaultDB
 	attache.DefaultViews
+	attache.DefaultFileServer
 }
 
 func (c *Ctx) CONFIG_DB() attache.DBConfig {

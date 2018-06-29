@@ -9,6 +9,7 @@ import (
 	"path"
 	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"unicode"
 
@@ -86,17 +87,24 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	matched := a.r.root.lookup(r.URL.Path)
 	if matched == nil || (!matched.isLeaf() && len(matched.methods) == 0) {
+		log.Println("no matched route for", r.URL.Path)
 		httpResult{code: 404}.ServeHTTP(w, r)
 		return
 	}
 
 	stack := matched.stackFor(r.Method)
 	if stack == nil {
+		log.Println("no method route for", r.URL.Path)
 		httpResult{code: 405}.ServeHTTP(w, r)
 		return
 	}
 
-	injector := newinjector(ictx, w, r)
+	injector := injector{
+		app: a,
+		ctx: ictx,
+		req: r,
+		res: w,
+	}
 
 	for _, x := range stack {
 		injector.apply(x)
@@ -169,7 +177,18 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("recovered: panic:", val)
+	pc := make([]uintptr, 12)
+	pc = pc[:runtime.Callers(2, pc)]
+	buf := strings.Builder{}
+	for _, f := range pc {
+		fn := runtime.FuncForPC(f)
+		if fn != nil {
+			fmt.Fprint(&buf, "\n", fn.Name())
+		}
+	}
+
+	log.Println("recovered: panic:", val, buf.String())
+
 	httpResult{code: 500}.ServeHTTP(w, r)
 }
 

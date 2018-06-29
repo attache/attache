@@ -2,6 +2,7 @@ package attache
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -30,43 +31,46 @@ func TestNodes(t *testing.T) {
 
 	for _, c := range cases {
 		err := root.insert(c.method, c.path, stack{}, c.mount)
-		if err == nil && c.wantErr != "" {
-			t.Fatalf("%s: wanted error %q, got none", c.path, c.wantErr)
-		}
-
-		if err != nil {
-			if c.wantErr == "" {
-				t.Fatalf("%s: unexpected error %q", c.path, err)
+		if c.wantErr != "" {
+			if err == nil {
+				t.Errorf("%s: wanted error %q, got none", c.path, c.wantErr)
+				continue
 			}
 
 			if err.Error() != c.wantErr.Error() {
-				t.Fatalf("%s: wanted error %q, got %q", c.path, c.wantErr, err)
+				t.Errorf("%s: wanted error %q, got %q", c.path, c.wantErr, err)
+			}
+		} else {
+			if err != nil {
+				t.Errorf("%s: unexpected error %q", c.path, err)
+				continue
+			}
+
+			if root.lookup(c.path) == nil {
+				t.Errorf("%s: did not find newly inserted node", c.path)
 			}
 		}
 	}
 
-	dump(root, "")
+	dump(root, "", 0)
 }
-func dump(root *node, soFar string) {
+func dump(root *node, soFar string, deep int) {
 	joined := soFar
 	if root.prefix != "" {
-		if joined != "" {
-			joined += ""
-		}
 		joined += root.prefix
 	}
 
 	if root.isLeaf() {
-		fmt.Println(joined, "(leaf)")
+		fmt.Println(strings.Repeat(" ", deep), joined, "(leaf)")
 	} else {
 		methods := []string{}
 		for m, _ := range root.methods {
 			methods = append(methods, m)
 		}
-		fmt.Println(joined, methods)
+		fmt.Println(strings.Repeat(" ", deep), joined, methods)
 	}
 
 	for _, kid := range root.skids {
-		dump(kid, joined)
+		dump(kid, joined, deep+1)
 	}
 }

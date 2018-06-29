@@ -3,23 +3,38 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/mccolljr/attache"
 	"github.com/mccolljr/attache/examples/basic/models"
 )
 
-func (c *Ctx) GET_TodoNew(r *http.Request) ([]byte, error) {
-	return c.Views().Render("todo.create", nil)
+func (c *Ctx) GET_TodoNew(w http.ResponseWriter, r *http.Request) {
+	data, err := c.Views().Render("todo.create", nil)
+	if err != nil {
+		attache.ErrorFatal(err)
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(data)
 }
 
-func (c *Ctx) GET_TodoList(r *http.Request) ([]byte, error) {
+func (c *Ctx) GET_TodoList(w http.ResponseWriter, r *http.Request) {
+	log.Println(c)
 	all, err := c.DB().All(func() attache.Storable { return new(models.Todo) })
+	log.Println("successful query")
 	if err != nil && err != sql.ErrNoRows {
 		attache.ErrorFatal(err)
 	}
 
-	return c.Views().Render("todo.list", all)
+	data, err := c.Views().Render("todo.list", all)
+	if err != nil {
+		attache.ErrorFatal(err)
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Write(data)
 }
 
 func (c *Ctx) GET_Todo(w http.ResponseWriter, r *http.Request) {
