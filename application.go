@@ -1,7 +1,6 @@
 package attache
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -14,7 +13,6 @@ import (
 	"unicode"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
 )
 
 type (
@@ -68,8 +66,7 @@ func reffn(method int, convertTo reflect.Type) http.Handler {
 }
 
 type Application struct {
-	router chi.Mux
-
+	r           router
 	contextType reflect.Type
 }
 
@@ -85,10 +82,25 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// store context and execute handlers
-	a.router.ServeHTTP(w, r.WithContext(
-		context.WithValue(r.Context(), ctxContextKey, ctx),
-	))
+	defer a.recover(w, r)
+
+	matched := a.r.root.lookup(r.URL.Path)
+	if matched == nil || (!matched.isLeaf() && len(matched.methods) == 0) {
+		httpResult{code: 404}.ServeHTTP(w, r)
+		return
+	}
+
+	stack := matched.stackFor(r.Method)
+	if stack == nil {
+		httpResult{code: 405}.ServeHTTP(w, r)
+		return
+	}
+
+	injector := newinjector(ictx, w, r)
+
+	for _, x := range stack {
+		injector.apply(x)
+	}
 }
 
 func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) error {
@@ -173,7 +185,7 @@ func Bootstrap(ctxType Context) (*Application, error) {
 		v = reflect.ValueOf(ctxType)
 		t = v.Type()
 		a = Application{
-			router: *chi.NewMux(),
+			r: newrouter(),
 		}
 	)
 
@@ -187,9 +199,9 @@ func Bootstrap(ctxType Context) (*Application, error) {
 		return nil, err
 	}
 
-	if err := bootstrapMiddleware(&a, ctxType); err != nil {
-		return nil, err
-	}
+	// if err := bootstrapMiddleware(&a, ctxType); err != nil {
+	// 	return nil, err
+	// }
 
 	if err := bootstrapFileServer(&a, ctxType); err != nil {
 		return nil, err
@@ -235,20 +247,20 @@ func bootstrapTryContextInit(impl Context) error {
 	return nil
 }
 
-func bootstrapMiddleware(a *Application, impl Context) error {
-	stack := Middlewares{
-		middleware.DefaultLogger,
-		a.recoveryMiddleware,
-	}
+// func bootstrapMiddleware(a *Application, impl Context) error {
+// 	stack := Middlewares{
+// 		middleware.DefaultLogger,
+// 		a.recoveryMiddleware,
+// 	}
 
-	if impl, ok := impl.(HasMiddleware); ok {
-		stack = append(stack, impl.Middleware()...)
-	}
+// 	if impl, ok := impl.(HasMiddleware); ok {
+// 		stack = append(stack, impl.Middleware()...)
+// 	}
 
-	a.router.Use(stack...)
+// 	a.router.Use(stack...)
 
-	return nil
-}
+// 	return nil
+// }
 
 func bootstrapFileServer(a *Application, impl Context) error {
 	if impl, ok := impl.(HasFileServer); ok {
@@ -269,14 +281,7 @@ func bootstrapFileServer(a *Application, impl Context) error {
 		}
 
 		basePath := path.Join("/", conf.BasePath)
-
-		a.router.Handle(
-			path.Join(basePath, "*"),
-			http.StripPrefix(
-				basePath,
-				http.FileServer(http.Dir(conf.Root)),
-			),
-		)
+		a.r.mount(basePath, http.FileServer(http.Dir(conf.Root)))
 	}
 
 	return nil
@@ -301,40 +306,24 @@ func bootstrapRoutes(a *Application, impl Context) error {
 
 		meth, path := match[1], pathForName(match[2])
 
-		mtyp := v.Method(i).Type()
-		var convertTo reflect.Type
-		switch true {
-		case mtyp.ConvertibleTo(tHandlerFunc):
-			convertTo = tHandlerFunc
-		case mtyp.ConvertibleTo(tRenderFunc):
-			convertTo = tRenderFunc
+		list := make(stack, 0, 3)
+
+		if bm, ok := t.MethodByName("BEFORE_" + match[2]); ok {
+			list = append(list, bm.Func)
 		}
 
-		if convertTo != nil {
-			list := make(mwlist, 0, 3)
+		list = append(list, m.Func)
 
-			if m, ok := t.MethodByName("BEFORE_" + match[2]); ok {
-				mtyp := v.Method(m.Index).Type()
-				if mtyp.ConvertibleTo(tHandlerFunc) {
-					list = append(list, reffn(m.Index, tHandlerFunc))
-				}
-			}
-
-			list = append(list, reffn(i, convertTo))
-
-			if m, ok := t.MethodByName("AFTER_" + match[2]); ok {
-				mtyp := v.Method(m.Index).Type()
-				if mtyp.ConvertibleTo(tHandlerFunc) {
-					list = append(list, reffn(m.Index, tHandlerFunc))
-				}
-			}
-
-			if meth == "ALL" {
-				a.router.Handle(path, list)
-			} else {
-				a.router.Method(meth, path, list)
-			}
+		if am, ok := t.MethodByName("AFTER_" + match[2]); ok {
+			list = append(list, am.Func)
 		}
+
+		if meth == "ALL" {
+			a.r.all(path, list)
+		} else {
+			a.r.handle(meth, path, list)
+		}
+
 	}
 
 	if found == 0 {

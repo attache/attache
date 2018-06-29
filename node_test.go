@@ -6,64 +6,66 @@ import (
 )
 
 func TestNodes(t *testing.T) {
-	root := newnode("/", nil, false)
+	cases := []struct {
+		method, path string
+		mount        bool
+		wantErr      sentinelError
+	}{
+		{"GET", "/", false, ""},
+		{"GET", "/a", false, ""},
+		{"GET", "/a/b", false, ""},
+		{"POST", "/a/b", false, ""},
+		{"PUT", "/test", false, ""},
+		{"PUT", "/tent", false, ""},
+		{"GET", "/a/b", false, errRouteExists},
+		{"GET", "/a/b/c/", false, ""},
+		{"", "/web", true, ""},
+		{"", "/web", true, errMountOnKnownPath},
+		{"GET", "/we", false, ""},
+		{"GET", "/web/bad", false, errRoutePastMount},
+		{"", "/a/b/c", true, errMountOnKnownPath},
+	}
 
-	// allow re-insert on non-final node
-	try("re-insert on non-final", t, false, func() {
-		root.insert("/home", nil, false)
-		root.insert("/home", nil, true)
-	})
+	root := newnode("/", nil, nil)
 
-	// forbid re-insert on final node
-	try("re-insert on non-final", t, true, func() {
-		root.insert("/home", nil, true)
-	})
+	for _, c := range cases {
+		err := root.insert(c.method, c.path, stack{}, c.mount)
+		if err == nil && c.wantErr != "" {
+			t.Fatalf("%s: wanted error %q, got none", c.path, c.wantErr)
+		}
 
-	// remainder
-	try("build tree", t, false, func() {
-		root.insert("/about", nil, true)
-		root.insert("/contact", nil, true)
-		root.insert("/contact/form", nil, true)
-		root.insert("/register", nil, true)
-		root.insert("/item/new", nil, true)
-		root.insert("/item/list", nil, true)
-		root.insert("/item", nil, true)
-		root.insert("/item2/new", nil, true)
-		root.insert("/item2/list", nil, true)
-		root.insert("/item2", nil, true)
-	})
+		if err != nil {
+			if c.wantErr == "" {
+				t.Fatalf("%s: unexpected error %q", c.path, err)
+			}
+
+			if err.Error() != c.wantErr.Error() {
+				t.Fatalf("%s: wanted error %q, got %q", c.path, c.wantErr, err)
+			}
+		}
+	}
 
 	dump(root, "")
 }
-
-func try(what string, t *testing.T, wantPanic bool, do func()) {
-	defer func() {
-		issue := recover()
-		if issue == nil && wantPanic {
-			t.Errorf("%s: wanted panic, got none", what)
-		}
-
-		if issue != nil && !wantPanic {
-			t.Errorf("%s: unexpected panic \"%v\"", what, issue)
-		}
-	}()
-
-	do()
-}
-
 func dump(root *node, soFar string) {
 	joined := soFar
 	if root.prefix != "" {
 		if joined != "" {
-			joined += "."
+			joined += ""
 		}
 		joined += root.prefix
 	}
-	if root.final {
-		fmt.Println(joined)
+
+	if root.isLeaf() {
+		fmt.Println(joined, "(leaf)")
 	} else {
-		fmt.Println("[" + joined + "]")
+		methods := []string{}
+		for m, _ := range root.methods {
+			methods = append(methods, m)
+		}
+		fmt.Println(joined, methods)
 	}
+
 	for _, kid := range root.skids {
 		dump(kid, joined)
 	}
