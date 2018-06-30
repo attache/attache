@@ -1,7 +1,6 @@
 package attache
 
 import (
-	"fmt"
 	"net/http"
 	"reflect"
 )
@@ -20,7 +19,6 @@ var (
 )
 
 func (i injector) getFor(typ reflect.Type) reflect.Value {
-	fmt.Println(typ)
 	// special cases
 	switch true {
 	case typ == tRequest:
@@ -30,7 +28,6 @@ func (i injector) getFor(typ reflect.Type) reflect.Value {
 	case typ == tContext:
 		fallthrough
 	case typ.Kind() == reflect.Ptr && typ.Elem() == i.app.contextType:
-		fmt.Println("context")
 		return reflect.ValueOf(i.ctx)
 	}
 

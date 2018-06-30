@@ -13,58 +13,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 )
-
-type (
-	Middlewares = chi.Middlewares
-	HandlerFunc = http.HandlerFunc
-
-	RenderFunc         func(*http.Request) ([]byte, error)
-	MiddlewareProvider func() Middlewares
-)
-
-func (fn RenderFunc) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	data, err := fn(r)
-	if err != nil {
-		ErrorFatal(err)
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(data)
-}
-
-var (
-	tHandlerFunc        = reflect.TypeOf((*HandlerFunc)(nil)).Elem()
-	tRenderFunc         = reflect.TypeOf((*RenderFunc)(nil)).Elem()
-	tMiddlewareProvider = reflect.TypeOf((*MiddlewareProvider)(nil)).Elem()
-)
-
-type reflectFn struct {
-	index int
-	typ   reflect.Type
-}
-
-func (f reflectFn) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	r.Context().
-		Value(ctxContextKey).(reflect.Value).
-		Method(f.index).
-		Convert(f.typ).
-		Interface().(http.Handler).
-		ServeHTTP(w, r)
-}
-
-type mwlist []http.Handler
-
-func (x mwlist) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	for _, h := range x {
-		h.ServeHTTP(w, r)
-	}
-}
-
-func reffn(method int, convertTo reflect.Type) http.Handler {
-	return reflectFn{index: method, typ: convertTo}
-}
 
 type Application struct {
 	r           router
@@ -87,14 +37,12 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	matched := a.r.root.lookup(r.URL.Path)
 	if matched == nil || (!matched.isLeaf() && len(matched.methods) == 0) {
-		log.Println("no matched route for", r.URL.Path)
 		httpResult{code: 404}.ServeHTTP(w, r)
 		return
 	}
 
 	stack := matched.stackFor(r.Method)
 	if stack == nil {
-		log.Println("no method route for", r.URL.Path)
 		httpResult{code: 405}.ServeHTTP(w, r)
 		return
 	}
@@ -192,7 +140,9 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 	httpResult{code: 500}.ServeHTTP(w, r)
 }
 
-func (a *Application) Run() error { return http.ListenAndServe(":8080", a) }
+func (a *Application) Run() error {
+	return http.ListenAndServe(":8080", middleware.DefaultLogger(a))
+}
 
 var (
 	methodRx     = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
@@ -217,10 +167,6 @@ func Bootstrap(ctxType Context) (*Application, error) {
 	if err := bootstrapTryContextInit(ctxType); err != nil {
 		return nil, err
 	}
-
-	// if err := bootstrapMiddleware(&a, ctxType); err != nil {
-	// 	return nil, err
-	// }
 
 	if err := bootstrapFileServer(&a, ctxType); err != nil {
 		return nil, err
@@ -266,21 +212,6 @@ func bootstrapTryContextInit(impl Context) error {
 	return nil
 }
 
-// func bootstrapMiddleware(a *Application, impl Context) error {
-// 	stack := Middlewares{
-// 		middleware.DefaultLogger,
-// 		a.recoveryMiddleware,
-// 	}
-
-// 	if impl, ok := impl.(HasMiddleware); ok {
-// 		stack = append(stack, impl.Middleware()...)
-// 	}
-
-// 	a.router.Use(stack...)
-
-// 	return nil
-// }
-
 func bootstrapFileServer(a *Application, impl Context) error {
 	if impl, ok := impl.(HasFileServer); ok {
 		conf := impl.CONFIG_FileServer()
@@ -294,7 +225,7 @@ func bootstrapFileServer(a *Application, impl Context) error {
 
 		if !info.IsDir() {
 			return BootstrapError{
-				Cause: fmt.Errorf("bootstrap: static files: %s is not a directory", conf.Root),
+				Cause: errors.New(conf.Root + " is not a directory"),
 				Phase: "init file server",
 			}
 		}
@@ -348,7 +279,7 @@ func bootstrapRoutes(a *Application, impl Context) error {
 	if found == 0 {
 		return BootstrapError{
 			Phase: "register routes",
-			Cause: errors.New("no routes found"),
+			Cause: errors.New("no routes defined"),
 		}
 	}
 

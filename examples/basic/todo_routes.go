@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/mccolljr/attache"
@@ -11,30 +10,16 @@ import (
 )
 
 func (c *Ctx) GET_TodoNew(w http.ResponseWriter, r *http.Request) {
-	data, err := c.Views().Render("todo.create", nil)
-	if err != nil {
-		attache.ErrorFatal(err)
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(data)
+	attache.RenderHTML(c, "todo.create", w, nil)
 }
 
 func (c *Ctx) GET_TodoList(w http.ResponseWriter, r *http.Request) {
-	log.Println(c)
 	all, err := c.DB().All(func() attache.Storable { return new(models.Todo) })
-	log.Println("successful query")
 	if err != nil && err != sql.ErrNoRows {
 		attache.ErrorFatal(err)
 	}
 
-	data, err := c.Views().Render("todo.list", all)
-	if err != nil {
-		attache.ErrorFatal(err)
-	}
-
-	w.Header().Set("Content-Type", "text/html")
-	w.Write(data)
+	attache.RenderHTML(c, "todo.list", w, all)
 }
 
 func (c *Ctx) GET_Todo(w http.ResponseWriter, r *http.Request) {
@@ -48,13 +33,7 @@ func (c *Ctx) GET_Todo(w http.ResponseWriter, r *http.Request) {
 		attache.ErrorFatal(err)
 	}
 
-	data, err := c.Views().Render("todo.update", &target)
-	if err != nil {
-		attache.ErrorFatal(err)
-	}
-
-	w.Header().Set("content-type", "text/html")
-	w.Write(data)
+	attache.RenderHTML(c, "todo.update", w, target)
 }
 
 func (c *Ctx) POST_TodoNew(w http.ResponseWriter, r *http.Request) {

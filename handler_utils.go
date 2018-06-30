@@ -42,3 +42,13 @@ func RedirectPermanent(path string) {
 func RedirectTemporary(path string) {
 	panic(http.RedirectHandler(path, http.StatusTemporaryRedirect))
 }
+
+func RenderHTML(ctx HasViews, name string, w http.ResponseWriter, data interface{}) {
+	buf, err := ctx.Views().Render(name, data)
+	if err != nil {
+		ErrorFatal(err)
+	}
+
+	w.Header().Set("content-type", "text/html")
+	w.Write(buf)
+}

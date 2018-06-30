@@ -16,10 +16,6 @@ type HasFileServer interface {
 	CONFIG_FileServer() FileServerConfig
 }
 
-type HasMiddleware interface {
-	Middleware() Middlewares
-}
-
 type HasToken interface {
 	CONFIG_Token() TokenConfig
 	Token() Token
