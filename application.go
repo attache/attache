@@ -22,34 +22,43 @@ type Application struct {
 }
 
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	ctx := reflect.New(a.contextType)
+	defer a.recover(w, r)
 
-	ictx := ctx.Interface().(Context)
+	matched := a.r.root.lookup(r.URL.Path)
+	if matched == nil || (!matched.isLeaf() && len(matched.methods) == 0) {
+		Error(404)
+	}
+
+	stack := matched.stackFor(r.Method)
+	if stack == nil {
+		Error(405)
+		return
+	}
+
+	// short-circuit context creation for
+	// mounted routes, since we won't use it
+	if matched.isLeaf() {
+		stack[0].Call(
+			[]reflect.Value{
+				reflect.ValueOf(w),
+				reflect.ValueOf(r),
+			},
+		)
+		return
+	}
+
+	ctx := reflect.New(a.contextType.Elem()).Interface().(Context)
 
 	// initialize the context, or die with 500
-	if err := initContextInstance(ictx, w, r); err != nil {
+	if err := initContextInstance(ctx, w, r); err != nil {
 		log.Println(err)
 		httpResult{code: 500}.ServeHTTP(w, r)
 		return
 	}
 
-	defer a.recover(w, r)
-
-	matched := a.r.root.lookup(r.URL.Path)
-	if matched == nil || (!matched.isLeaf() && len(matched.methods) == 0) {
-		httpResult{code: 404}.ServeHTTP(w, r)
-		return
-	}
-
-	stack := matched.stackFor(r.Method)
-	if stack == nil {
-		httpResult{code: 405}.ServeHTTP(w, r)
-		return
-	}
-
 	injector := injector{
 		app: a,
-		ctx: ictx,
+		ctx: ctx,
 		req: r,
 		res: w,
 	}
@@ -107,13 +116,6 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 	return nil
 }
 
-func (a *Application) recoveryMiddleware(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer a.recover(w, r)
-		h.ServeHTTP(w, r)
-	})
-}
-
 func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 	val := recover()
 	if val == nil {
@@ -145,8 +147,7 @@ func (a *Application) Run() error {
 }
 
 var (
-	methodRx     = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
-	middlewareRx = regexp.MustCompile(`^USE_(.*)$`)
+	methodRx = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
 )
 
 func Bootstrap(ctxType Context) (*Application, error) {
@@ -162,7 +163,7 @@ func Bootstrap(ctxType Context) (*Application, error) {
 		return nil, fmt.Errorf("expecting pointer to a struct, got %T", ctxType)
 	}
 
-	a.contextType = t.Elem()
+	a.contextType = t
 
 	if err := bootstrapTryContextInit(ctxType); err != nil {
 		return nil, err

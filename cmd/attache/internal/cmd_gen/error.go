@@ -1,4 +1,4 @@
-package main
+package cmd_gen
 
 type ArgumentError struct {
 	Cause error

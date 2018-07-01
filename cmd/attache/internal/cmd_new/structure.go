@@ -1,14 +1,13 @@
-package main
+package cmd_new
 
 import (
-	"bytes"
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
-	"text/template"
+
+	"golang.org/x/tools/imports"
 )
 
 type Dir struct {
@@ -57,7 +56,20 @@ func (f File) Build(root string) error {
 	}
 
 	if body != nil {
-		if err := ioutil.WriteFile(filepath.Join(root, f.Name), body, os.ModePerm); err != nil {
+		var (
+			err      = error(nil)
+			filePath = filepath.Join(root, f.Name)
+		)
+
+		if strings.HasSuffix(f.Name, ".go") {
+			// apply goimports to go files
+			body, err = imports.Process(filePath, body, nil)
+			if err != nil {
+				return err
+			}
+		}
+
+		if err = ioutil.WriteFile(filePath, body, os.ModePerm); err != nil {
 			return err
 		}
 	} else {
@@ -65,26 +77,4 @@ func (f File) Build(root string) error {
 	}
 
 	return nil
-}
-
-func FileTemplate(name string) func() ([]byte, error) {
-	return func() ([]byte, error) {
-		tpl := template.New("")
-		if strings.HasSuffix(name, ".tpl.tpl") {
-			tpl.Delims("[[", "]]")
-		}
-
-		tpl = template.Must(
-			tpl.Parse(
-				MustAssetString(path.Join("templates", name)),
-			),
-		)
-
-		buf := new(bytes.Buffer)
-		if err := tpl.Execute(buf, context); err != nil {
-			return nil, err
-		}
-
-		return buf.Bytes(), nil
-	}
 }

@@ -5,26 +5,25 @@ import (
 	"net/http"
 	"database/sql"
 
-	"github.com/go-chi/chi"
 	"github.com/mccolljr/attache"
 )
 
-func (c *Ctx) GET_{{.Name}}New(r *http.Request) ([]byte, error) {
-	return c.Views().Render("{{.Table}}.create", nil)
+func (c *{{.ContextType}}) GET_{{.Model.Name}}New(w http.ResponseWriter, r *http.Request) {
+	attache.RenderHTML(c, "{{.Model.Table}}.create", w, nil)
 }
 
-func (c *Ctx) GET_{{.Name}}List(r *http.Request) ([]byte, error) {
-	all, err := c.DB().All(func() attache.Storable{ return new(models.{{.Name}}) })
+func (c *{{.ContextType}}) GET_{{.Model.Name}}List(w http.ResponseWriter, r *http.Request) {
+	all, err := c.DB().All(func() attache.Storable{ return new(models.{{.Model.Name}}) })
 	if err != nil && err != sql.ErrNoRows {
 		attache.ErrorFatal(err)
 	}
 
-	return c.Views().Render("{{.Table}}.list", all)
+	attache.RenderHTML(c, "{{.Model.Table}}.list", w, all)
 }
 
-func (c *Ctx) GET_{{.Name}}(w http.ResponseWriter, r *http.Request) {
+func (c *{{.ContextType}}) GET_{{.Model.Name}}(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
-	target := new(models.{{.Name}})
+	target := new(models.{{.Model.Name}})
 	if err := c.DB().Find(target, id); err != nil {
 		if err == sql.ErrNoRows {
 			attache.Error(404)
@@ -33,21 +32,16 @@ func (c *Ctx) GET_{{.Name}}(w http.ResponseWriter, r *http.Request) {
 		attache.ErrorFatal(err)
 	}
 
-	data, err := c.Views().Render("{{.Table}}.update", &target)
-	if err != nil {
-		attache.ErrorFatal(err)
-	}
 
-	w.Header().Set("content-type", "text/html")
-	w.Write(data)
+	attache.RenderHTML(c, "{{.Model.Table}}.update", w, &target)
 }
 
-func (c *Ctx) POST_{{.Name}}New(w http.ResponseWriter, r *http.Request) {
+func (c *{{.ContextType}}) POST_{{.Model.Name}}New(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		attache.ErrorFatal(err)
 	}
 
-	target := new(models.{{.Name}})
+	target := new(models.{{.Model.Name}})
 	
 	if err := attache.FormDecode(target, r.Form); err != nil {
 		attache.ErrorFatal(err)
@@ -57,12 +51,12 @@ func (c *Ctx) POST_{{.Name}}New(w http.ResponseWriter, r *http.Request) {
 		attache.ErrorFatal(err)
 	}
 
-	attache.RedirectPage(fmt.Sprintf("/{{.Table}}?id=%v", target.{{.KeyStructField}}))
+	attache.RedirectPage(fmt.Sprintf("/{{.Model.Table}}?id=%v", target.{{.Model.KeyStructField}}))
 }
 
-func (c *Ctx) POST_{{.Name}}(w http.ResponseWriter, r *http.Request) {
+func (c *{{.ContextType}}) POST_{{.Model.Name}}(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
-	target := new(models.{{.Name}})
+	target := new(models.{{.Model.Name}})
 	if err := c.DB().Find(target, id); err != nil {
 		if err == sql.ErrNoRows {
 			attache.Error(404)
@@ -79,12 +73,12 @@ func (c *Ctx) POST_{{.Name}}(w http.ResponseWriter, r *http.Request) {
 		attache.ErrorFatal(err)
 	}
 
-	attache.RedirectPage(fmt.Sprintf("/{{.Table}}?id=%v", target.{{.KeyStructField}}))
+	attache.RedirectPage(fmt.Sprintf("/{{.Model.Table}}?id=%v", target.{{.Model.KeyStructField}}))
 }
 
-func (c *Ctx) DELETE_{{.Name}}(w http.ResponseWriter, r *http.Request) {
+func (c *{{.ContextType}}) DELETE_{{.Model.Name}}(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
-	target := new(models.{{.Name}})
+	target := new(models.{{.Model.Name}})
 	if err := c.DB().Find(target, id); err != nil {
 		if err == sql.ErrNoRows {
 			attache.Success()

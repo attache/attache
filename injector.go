@@ -1,6 +1,7 @@
 package attache
 
 import (
+	"log"
 	"net/http"
 	"reflect"
 )
@@ -21,18 +22,23 @@ var (
 func (i injector) getFor(typ reflect.Type) reflect.Value {
 	// special cases
 	switch true {
+	// provide *http.Request
 	case typ == tRequest:
 		return reflect.ValueOf(i.req)
+
+	// provide http.ResponseWriter
 	case typ == tResponseWriter:
 		return reflect.ValueOf(i.res)
-	case typ == tContext:
-		fallthrough
-	case typ.Kind() == reflect.Ptr && typ.Elem() == i.app.contextType:
-		return reflect.ValueOf(i.ctx)
-	}
 
-	// default
-	return reflect.Zero(typ)
+	// provide concrete Context where applicable
+	case i.app.contextType.AssignableTo(typ):
+		return reflect.ValueOf(i.ctx)
+
+	// unknown types default to the zero value
+	default:
+		log.Printf("inject: unrecognized type %s, using zero value", typ)
+		return reflect.Zero(typ)
+	}
 }
 
 func (i *injector) apply(fn reflect.Value) {
