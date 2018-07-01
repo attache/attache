@@ -11,8 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/mccolljr/attache/cmd/attache/internal/shared"
-
+	"github.com/mccolljr/attache/cmd/attache/shared"
 	"golang.org/x/tools/imports"
 )
 

@@ -1,8 +1,6 @@
 package cmd_new
 
-import (
-	"github.com/mccolljr/attache/cmd/attache/internal/shared"
-)
+import "github.com/mccolljr/attache/cmd/attache/shared"
 
 //go:generate go-bindata -pkg cmd_new templates
 
