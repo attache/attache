@@ -6,8 +6,8 @@
 			
 			<label for="Title">Title</label>
 			<input type="text" name="Title" />
-			<label for="Details">Details</label>
-			<input type="text" name="Details" />
+			<label for="Info">Info</label>
+			<input type="text" name="Info" />
 			<input type="submit" value="Create" class="pure-button pure-button-primary"/>
 		</fieldset>
 	</form>

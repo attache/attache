@@ -4,15 +4,17 @@
 <table class="pure-table pure-table-bordered">
 	<thead>
 		<tr>
+			<th>ID</th>
 			<th>Title</th>
-			<th>Details</th>
+			<th>Info</th>
 		</tr>
 	</thead>
 	<tbody>
 	{{range .}}
 		<tr>
-			<td><a href="/todo?id={{.Title}}">{{.Title}}</a></td>
-			<td>{{.Details}}</td>
+			<td><a href="/todo?id={{.ID}}">{{.ID}}</a></td>
+			<td>{{.Title}}</td>
+			<td>{{.Info}}</td>
 		</tr>
 	{{end}}
 	</tbody>

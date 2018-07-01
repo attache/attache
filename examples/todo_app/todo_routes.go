@@ -6,14 +6,14 @@ import (
 	"net/http"
 
 	"github.com/mccolljr/attache"
-	"github.com/mccolljr/attache/examples/basic/models"
+	"github.com/mccolljr/attache/examples/todo_app/models"
 )
 
-func (c *Ctx) GET_TodoNew(w http.ResponseWriter, r *http.Request) {
+func (c *TodoApp) GET_TodoNew(w http.ResponseWriter, r *http.Request) {
 	attache.RenderHTML(c, "todo.create", w, nil)
 }
 
-func (c *Ctx) GET_TodoList(w http.ResponseWriter, r *http.Request) {
+func (c *TodoApp) GET_TodoList(w http.ResponseWriter, r *http.Request) {
 	all, err := c.DB().All(func() attache.Storable { return new(models.Todo) })
 	if err != nil && err != sql.ErrNoRows {
 		attache.ErrorFatal(err)
@@ -22,7 +22,7 @@ func (c *Ctx) GET_TodoList(w http.ResponseWriter, r *http.Request) {
 	attache.RenderHTML(c, "todo.list", w, all)
 }
 
-func (c *Ctx) GET_Todo(w http.ResponseWriter, r *http.Request) {
+func (c *TodoApp) GET_Todo(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 	target := new(models.Todo)
 	if err := c.DB().Find(target, id); err != nil {
@@ -33,10 +33,10 @@ func (c *Ctx) GET_Todo(w http.ResponseWriter, r *http.Request) {
 		attache.ErrorFatal(err)
 	}
 
-	attache.RenderHTML(c, "todo.update", w, target)
+	attache.RenderHTML(c, "todo.update", w, &target)
 }
 
-func (c *Ctx) POST_TodoNew(w http.ResponseWriter, r *http.Request) {
+func (c *TodoApp) POST_TodoNew(w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
 		attache.ErrorFatal(err)
 	}
@@ -51,10 +51,10 @@ func (c *Ctx) POST_TodoNew(w http.ResponseWriter, r *http.Request) {
 		attache.ErrorFatal(err)
 	}
 
-	attache.RedirectPage(fmt.Sprintf("/todo?id=%v", target.Title))
+	attache.RedirectPage(fmt.Sprintf("/todo?id=%v", target.ID))
 }
 
-func (c *Ctx) POST_Todo(w http.ResponseWriter, r *http.Request) {
+func (c *TodoApp) POST_Todo(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 	target := new(models.Todo)
 	if err := c.DB().Find(target, id); err != nil {
@@ -73,10 +73,10 @@ func (c *Ctx) POST_Todo(w http.ResponseWriter, r *http.Request) {
 		attache.ErrorFatal(err)
 	}
 
-	attache.RedirectPage(fmt.Sprintf("/todo?id=%v", target.Title))
+	attache.RedirectPage(fmt.Sprintf("/todo?id=%v", target.ID))
 }
 
-func (c *Ctx) DELETE_Todo(w http.ResponseWriter, r *http.Request) {
+func (c *TodoApp) DELETE_Todo(w http.ResponseWriter, r *http.Request) {
 	id := r.FormValue("id")
 	target := new(models.Todo)
 	if err := c.DB().Find(target, id); err != nil {

@@ -1,3 +1,3 @@
 {
-    "ContextType": "{{.Name}}",
+    "ContextType": "{{.Name}}"
 }

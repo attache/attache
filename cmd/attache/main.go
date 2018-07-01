@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"plugin"
 
-	"github.com/mccolljr/attache/cmd/attache/internal/shared"
+	"github.com/mccolljr/attache/cmd/attache/shared"
 )
 
 const helpText = `attache: cli for the attache framework
