@@ -27,35 +27,47 @@ func newrouter() router {
 	return router{newnode("/", nil, nil)}
 }
 
-func (r *router) mount(path string, h http.Handler) {
-	path = canonicalize(path, true)
+func (r *router) mount(path string, h http.Handler) error {
+	path = canonicalize(path, false)
 	h = http.StripPrefix(path, h)
 
 	err := r.root.insert("", path, stack{reflect.ValueOf(h.ServeHTTP)}, true)
 	if err != nil {
-		panic(fmt.Sprintf("mount %s: %s", path, err))
+		return fmt.Errorf("mount %s: %s", path, err)
 	}
+
+	return nil
 }
 
-func (r *router) handle(method, path string, s stack) {
+func (r *router) handle(method, path string, s stack) error {
 	path = canonicalize(path, false)
 	method = strings.ToUpper(method)
 
 	err := r.root.insert(method, path, s, false)
 	if err != nil {
-		panic(fmt.Sprintf("route %s: %s", path, err))
+		return fmt.Errorf("route %s: %s", path, err)
 	}
+
+	return nil
 }
 
-func (r *router) all(path string, s stack) {
-	r.handle("GET", path, s)
-	r.handle("PUT", path, s)
-	r.handle("POST", path, s)
-	r.handle("HEAD", path, s)
-	r.handle("TRACE", path, s)
-	r.handle("PATCH", path, s)
-	r.handle("DELETE", path, s)
-	r.handle("OPTIONS", path, s)
+func (r *router) all(path string, s stack) error {
+	for _, meth := range []string{
+		"GET",
+		"PUT",
+		"POST",
+		"HEAD",
+		"TRACE",
+		"PATCH",
+		"DELETE",
+		"OPTIONS",
+	} {
+		if err := r.handle(meth, path, s); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func canonicalize(p string, trailingSlash bool) string {

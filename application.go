@@ -23,7 +23,8 @@ type Application struct {
 	contextType reflect.Type
 }
 
-func (a *Application) handlerFunc(w http.ResponseWriter, r *http.Request) {
+// ServeHTTP implements http.Handler for *Application
+func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer a.recover(w, r)
 
 	matched := a.r.root.lookup(r.URL.Path)
@@ -147,16 +148,12 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 // Run runs an HTTP server serving requests for a on
 // 0.0.0.0:8080
 func (a *Application) Run() error {
-	return http.ListenAndServe(
-		":8080",
-		middleware.DefaultLogger(
-			http.HandlerFunc(a.handlerFunc),
-		),
-	)
+	return http.ListenAndServe(":8080", middleware.DefaultLogger(a))
 }
 
 var (
 	methodRx = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
+	mountRx  = regexp.MustCompile(`^MOUNT_(.*)$`)
 )
 
 // Bootstrap attempts to create an Application to serve requests for
@@ -252,42 +249,76 @@ func bootstrapFileServer(a *Application, impl Context) error {
 }
 
 func bootstrapRoutes(a *Application, impl Context) error {
-	var (
-		v     = reflect.ValueOf(impl)
-		t     = v.Type()
-		found = 0
+	v := reflect.ValueOf(impl)
+	t := v.Type()
+	found := 0
+
+	type (
+		route struct {
+			method string
+			path   string
+			stack  stack
+		}
+
+		mount struct {
+			path    string
+			handler http.Handler
+		}
 	)
+
+	routes := make([]route, 0, 32)
+	mounts := make([]mount, 0, 32)
+	mountFnTyp := reflect.TypeOf((func() http.Handler)(nil))
 
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
 
 		match := methodRx.FindStringSubmatch(m.Name)
-		if match == nil {
+		if match != nil {
+			meth, path := match[1], pathForName(match[2])
+
+			rt := route{
+				method: meth,
+				path:   path,
+				stack:  make(stack, 0, 3),
+			}
+
+			if bm, ok := t.MethodByName("BEFORE_" + match[2]); ok {
+				rt.stack = append(rt.stack, bm.Func)
+			}
+
+			rt.stack = append(rt.stack, m.Func)
+
+			if am, ok := t.MethodByName("AFTER_" + match[2]); ok {
+				rt.stack = append(rt.stack, am.Func)
+			}
+
+			routes = append(routes, rt)
+			found++
 			continue
 		}
 
-		found++
+		match = mountRx.FindStringSubmatch(m.Name)
+		if match != nil {
+			path := pathForName(match[1])
 
-		meth, path := match[1], pathForName(match[2])
+			mt := mount{
+				path: path,
+			}
 
-		list := make(stack, 0, 3)
+			fnVal := v.Method(m.Index)
+			fnValTyp := fnVal.Type()
 
-		if bm, ok := t.MethodByName("BEFORE_" + match[2]); ok {
-			list = append(list, bm.Func)
+			if !fnValTyp.ConvertibleTo(mountFnTyp) {
+				return fmt.Errorf("%s does not have signature `func() http.Handler`", m.Name)
+			}
+
+			mt.handler = fnVal.Convert(mountFnTyp).Interface().(func() http.Handler)()
+
+			mounts = append(mounts, mt)
+			found++
+			continue
 		}
-
-		list = append(list, m.Func)
-
-		if am, ok := t.MethodByName("AFTER_" + match[2]); ok {
-			list = append(list, am.Func)
-		}
-
-		if meth == "ALL" {
-			a.r.all(path, list)
-		} else {
-			a.r.handle(meth, path, list)
-		}
-
 	}
 
 	if found == 0 {
@@ -297,9 +328,26 @@ func bootstrapRoutes(a *Application, impl Context) error {
 		}
 	}
 
+	for _, mt := range mounts {
+		if err := a.r.mount(mt.path, mt.handler); err != nil {
+			return err
+		}
+	}
+
+	for _, rt := range routes {
+		if rt.method == "ALL" {
+			if err := a.r.all(rt.path, rt.stack); err != nil {
+				return err
+			}
+		} else {
+			if err := a.r.handle(rt.method, rt.path, rt.stack); err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
-
 func pathForName(name string) string {
 	// sanitize name
 	name = strings.Replace(name, "_", "", -1)
