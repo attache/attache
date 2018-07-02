@@ -11,6 +11,8 @@ func envOrDefault(s, dflt string) string {
 	return dflt
 }
 
+// DefaultViews is a type that can be embedded into a Context type
+// to enable views with default configuration options
 type DefaultViews struct {
 	views ViewCache
 }
@@ -23,6 +25,9 @@ func (d *DefaultViews) CONFIG_Views() ViewConfig {
 	}
 }
 
+// DefaultDB is a type that can be embedded into a Context type
+// to enable a database connection with default configuration
+// options
 type DefaultDB struct {
 	db DB
 }
@@ -36,6 +41,8 @@ func (d *DefaultDB) CONFIG_DB() DBConfig {
 	}
 }
 
+// DefaultToken is a type that can be embedded into a Context type
+// to enable managed JWTs with default configuration options
 type DefaultToken struct {
 	tok Token
 }
@@ -50,6 +57,8 @@ func (d *DefaultToken) CONFIG_Token() TokenConfig {
 	}
 }
 
+// DefaultFileServer is a type that can be embedded into a Context type
+// to enable a static file server with default configuration options
 type DefaultFileServer struct{}
 
 func (d DefaultFileServer) CONFIG_FileServer() FileServerConfig {

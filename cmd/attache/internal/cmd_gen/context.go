@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -168,7 +167,6 @@ func (ctx *Context) do() error {
 
 		formattedModel, err := imports.Process(modelFile, buf.Bytes(), nil)
 		if err != nil {
-			log.Println("goimports failed:\n\n\n", buf.String(), "\n\n")
 			return err
 		}
 

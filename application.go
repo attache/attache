@@ -16,12 +16,14 @@ import (
 	"github.com/go-chi/chi/middleware"
 )
 
+// An Application routes HTTP traffic to an instance of its associated
+// concrete Context type
 type Application struct {
 	r           router
 	contextType reflect.Type
 }
 
-func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (a *Application) handlerFunc(w http.ResponseWriter, r *http.Request) {
 	defer a.recover(w, r)
 
 	matched := a.r.root.lookup(r.URL.Path)
@@ -142,14 +144,25 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 	httpResult{code: 500}.ServeHTTP(w, r)
 }
 
+// Run runs an HTTP server serving requests for a on
+// 0.0.0.0:8080
 func (a *Application) Run() error {
-	return http.ListenAndServe(":8080", middleware.DefaultLogger(a))
+	return http.ListenAndServe(
+		":8080",
+		middleware.DefaultLogger(
+			http.HandlerFunc(a.handlerFunc),
+		),
+	)
 }
 
 var (
 	methodRx = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
 )
 
+// Bootstrap attempts to create an Application to serve requests for
+// the provided concrete Context type. If an error is encountered
+// during the bootstrapping process, it is returned.
+// If a nil *Application is returned, the returned error will be non-nil
 func Bootstrap(ctxType Context) (*Application, error) {
 	var (
 		v = reflect.ValueOf(ctxType)

@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+// Storable is the interface implemented by any type that can be
+// stored/retrieved via database/sql
 type Storable interface {
 	Table() string
 
@@ -22,33 +24,76 @@ type Storable interface {
 }
 
 type (
+	// BeforeInserter can be implemented by a Storable type
+	// to provide a callback before insertion. If a non-nil error
+	// is returned, the insert operation is aborted
 	BeforeInserter interface{ BeforeInsert() error }
-	AfterInserter  interface{ AfterInsert(sql.Result) }
+
+	// AfterInserter can be implemented by a Storable type
+	// to provide a callback after insertion. The callback
+	// has access to the returned sql.Result
+	AfterInserter interface{ AfterInsert(sql.Result) }
 )
 
 type (
+	// BeforeUpdater can be implemented by a Storable type
+	// to provide a callback before an update. If a non-nil
+	// error is returned, the update operation is aborted
 	BeforeUpdater interface{ BeforeUpdate() (err error) }
-	AfterUpdater  interface{ AfterUpdate(sql.Result) }
+
+	// AfterUpdater can be implemented by a Storable type
+	// to provide a callback after an update. The callback
+	// has access to the returned sql.Result
+	AfterUpdater interface{ AfterUpdate(sql.Result) }
 )
 
 type (
+	// BeforeUpdater can be implemented by a Storable type
+	// to provide a callback before a deletion. If a non-nil
+	// error is returned, the deletion is aborted
 	BeforeDeleter interface{ BeforeDelete() (err error) }
-	AfterDeleter  interface{ AfterDelete(sql.Result) }
+
+	// AfterDeleter can be implemented by a Storable type
+	// to provide a callback after a deletion. The callback
+	// has access to the returned sql.Result
+	AfterDeleter interface{ AfterDelete(sql.Result) }
 )
 
 var (
 	tStorable = reflect.TypeOf((*Storable)(nil)).Elem()
 )
 
+// A DB provides methods for querying the database, executing sql
+// operations, and storing / deleting / querying Storable objects
 type DB interface {
+	// Query is identical to DB.Query from database/sql
 	Query(query string, args ...interface{}) (*sql.Rows, error)
+	// Exec is identical to DB.Exec from database/sql
 	Exec(query string, args ...interface{}) (sql.Result, error)
 
+	// Insert inserts the Storable object into the database.
+	// Any error encountered is returned
 	Insert(s Storable) error
+
+	// Update updates the Storable object in the database.
+	// Any error encountered is returned
 	Update(s Storable) error
+
+	// Delete removes the Storable object from the database.
+	// Any error encountered is returned
 	Delete(s Storable) error
-	All(func() Storable) ([]Storable, error)
+
+	// All queries all objects in the database represented
+	// by the concrete type returned by newFn.
+	// Any error encountered is returned
+	All(newFn func() Storable) ([]Storable, error)
+
+	// Find locates the object in the database represented by
+	// into's concrete type and by the key value(s) provided in args
 	Find(into Storable, args ...interface{}) error
+
+	// Find locates the object in the database represented by
+	// into's concrete type and by the given field-value combination
 	FindBy(into Storable, field string, val interface{}) error
 
 	private()

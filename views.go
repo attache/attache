@@ -11,6 +11,7 @@ import (
 	"html/template"
 )
 
+// View is the interface implemented by a type that can be rendered
 type View interface {
 	Execute(out io.Writer, data interface{}) error
 }
@@ -19,9 +20,22 @@ type noopView struct{}
 
 func (noopView) Execute(_ io.Writer, _ interface{}) error { return nil }
 
+// A ViewCache is a read-only view of a set of cached views. It is safe for
+// concurrent use between goroutines
 type ViewCache interface {
+	// Get retrieves the View from the cache mapped to the given name.
+	// If there is no view associated with name, an empty, no-op View
+	// implementation is returned. The returned View will never be nil
 	Get(name string) View
+
+	// Has returns true if there is a View in the cache mapped to
+	// the given name, otherwise it returns false
 	Has(name string) (ok bool)
+
+	// Render will call Get(name) to retrieve a View, and will
+	// then execute that view with data as the View's data argument.
+	// If an error is encountered, it is returned. If not, the rendered
+	// bytes are returned
 	Render(name string, data interface{}) ([]byte, error)
 
 	// ViewCache should not be implemented outside of this package
