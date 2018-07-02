@@ -12,14 +12,29 @@ import (
 // Storable is the interface implemented by any type that can be
 // stored/retrieved via database/sql
 type Storable interface {
+	// Table returns the name of the table that represents
+	// the Storable object in the database
 	Table() string
 
+	// Insert returns the columns to be inserted, and the values
+	// to be inserted in those columns for the Storable object
 	Insert() (columns []string, values []interface{})
+
+	// Update returns the columns to be updated, and the
+	// updated values for those columns for the Storable object
 	Update() (columns []string, values []interface{})
 
+	// Select returns the columns to be selected,
+	// as well as pointers to values that will be used
+	// to store the values retrieved from the database
 	Select() (columns []string, into []interface{})
 
+	// KeyColumns returns the columns composing the primary key
+	// for the Storable object
 	KeyColumns() []string
+
+	// KeyValues returns the values representing the primary key
+	// values for the Storable object
 	KeyValues() []interface{}
 }
 
@@ -48,7 +63,7 @@ type (
 )
 
 type (
-	// BeforeUpdater can be implemented by a Storable type
+	// BeforeDeleter can be implemented by a Storable type
 	// to provide a callback before a deletion. If a non-nil
 	// error is returned, the deletion is aborted
 	BeforeDeleter interface{ BeforeDelete() (err error) }
