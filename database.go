@@ -12,8 +12,9 @@ import (
 // Storable is the interface implemented by any type that can be
 // stored/retrieved via database/sql
 type Storable interface {
-	Table() string // Table returns the name of the table that represents
+	// Table returns the name of the table that represents
 	// the Storable object in the database
+	Table() string
 
 	// Insert returns the columns to be inserted, and the values
 	// to be inserted in those columns for the Storable object
