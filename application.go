@@ -268,7 +268,7 @@ func bootstrapRoutes(a *Application, impl Context) error {
 
 	routes := make([]route, 0, 32)
 	mounts := make([]mount, 0, 32)
-	mountFnTyp := reflect.TypeOf((func() http.Handler)(nil))
+	mountFnTyp := reflect.TypeOf((func() (http.Handler, error))(nil))
 
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
@@ -310,10 +310,24 @@ func bootstrapRoutes(a *Application, impl Context) error {
 			fnValTyp := fnVal.Type()
 
 			if !fnValTyp.ConvertibleTo(mountFnTyp) {
-				return fmt.Errorf("%s does not have signature `func() http.Handler`", m.Name)
+				return BootstrapError{
+					Cause: fmt.Errorf("%s does not have signature `func() http.Handler`", m.Name),
+					Phase: fmt.Sprintf("mount %s", path),
+				}
 			}
 
-			mt.handler = fnVal.Convert(mountFnTyp).Interface().(func() http.Handler)()
+			h, err := fnVal.
+				Convert(mountFnTyp).
+				Interface().(func() (http.Handler, error))()
+
+			if err != nil {
+				return BootstrapError{
+					Cause: fmt.Errorf("%s does not have signature `func() http.Handler`", m.Name),
+					Phase: fmt.Sprintf("mount %s", path),
+				}
+			}
+
+			mt.handler = h
 
 			mounts = append(mounts, mt)
 			found++
@@ -330,18 +344,27 @@ func bootstrapRoutes(a *Application, impl Context) error {
 
 	for _, mt := range mounts {
 		if err := a.r.mount(mt.path, mt.handler); err != nil {
-			return err
+			return BootstrapError{
+				Phase: fmt.Sprintf("mount %s", mt.path),
+				Cause: err,
+			}
 		}
 	}
 
 	for _, rt := range routes {
 		if rt.method == "ALL" {
 			if err := a.r.all(rt.path, rt.stack); err != nil {
-				return err
+				return BootstrapError{
+					Phase: fmt.Sprintf("route %s %s", rt.method, rt.path),
+					Cause: err,
+				}
 			}
 		} else {
 			if err := a.r.handle(rt.method, rt.path, rt.stack); err != nil {
-				return err
+				return BootstrapError{
+					Phase: fmt.Sprintf("route %s %s", rt.method, rt.path),
+					Cause: err,
+				}
 			}
 		}
 	}
