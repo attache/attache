@@ -1,7 +1,6 @@
 package attache
 
 import (
-	"fmt"
 	"net/http"
 	"path"
 	"reflect"
@@ -33,7 +32,19 @@ func (r *router) mount(path string, h http.Handler) error {
 
 	err := r.root.insert("", path, stack{reflect.ValueOf(h.ServeHTTP)}, true)
 	if err != nil {
-		return fmt.Errorf("mount %s: %s", path, err)
+		return err
+	}
+
+	return nil
+}
+
+func (r *router) mountGuarded(path string, guard reflect.Value, h http.Handler) error {
+	path = canonicalize(path, false)
+	h = http.StripPrefix(path, h)
+
+	err := r.root.insert("", path, stack{guard, reflect.ValueOf(h.ServeHTTP)}, true)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -45,7 +56,7 @@ func (r *router) handle(method, path string, s stack) error {
 
 	err := r.root.insert(method, path, s, false)
 	if err != nil {
-		return fmt.Errorf("route %s: %s", path, err)
+		return err
 	}
 
 	return nil

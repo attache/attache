@@ -39,8 +39,8 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// short-circuit context creation for
-	// mounted routes, since we won't use it
-	if matched.isLeaf() {
+	// unguarded mounted routes, since we won't use it
+	if matched.isLeaf() && len(stack) == 1 {
 		stack[0].Call(
 			[]reflect.Value{
 				reflect.ValueOf(w),
@@ -262,6 +262,7 @@ func bootstrapRoutes(a *Application, impl Context) error {
 
 		mount struct {
 			path    string
+			guard   reflect.Value
 			handler http.Handler
 		}
 	)
@@ -311,7 +312,7 @@ func bootstrapRoutes(a *Application, impl Context) error {
 
 			if !fnValTyp.ConvertibleTo(mountFnTyp) {
 				return BootstrapError{
-					Cause: fmt.Errorf("%s does not have signature `func() http.Handler`", m.Name),
+					Cause: fmt.Errorf("%s does not have signature %s", m.Name, mountFnTyp),
 					Phase: fmt.Sprintf("mount %s", path),
 				}
 			}
@@ -322,12 +323,16 @@ func bootstrapRoutes(a *Application, impl Context) error {
 
 			if err != nil {
 				return BootstrapError{
-					Cause: fmt.Errorf("%s does not have signature `func() http.Handler`", m.Name),
+					Cause: fmt.Errorf("%s does not have signature %s", m.Name, mountFnTyp),
 					Phase: fmt.Sprintf("mount %s", path),
 				}
 			}
 
 			mt.handler = h
+
+			if gm, ok := t.MethodByName("GUARD_" + match[1]); ok {
+				mt.guard = gm.Func
+			}
 
 			mounts = append(mounts, mt)
 			found++
@@ -343,10 +348,19 @@ func bootstrapRoutes(a *Application, impl Context) error {
 	}
 
 	for _, mt := range mounts {
-		if err := a.r.mount(mt.path, mt.handler); err != nil {
-			return BootstrapError{
-				Phase: fmt.Sprintf("mount %s", mt.path),
-				Cause: err,
+		if mt.guard.IsValid() {
+			if err := a.r.mountGuarded(mt.path, mt.guard, mt.handler); err != nil {
+				return BootstrapError{
+					Phase: fmt.Sprintf("mount %s", mt.path),
+					Cause: err,
+				}
+			}
+		} else {
+			if err := a.r.mount(mt.path, mt.handler); err != nil {
+				return BootstrapError{
+					Phase: fmt.Sprintf("mount %s", mt.path),
+					Cause: err,
+				}
 			}
 		}
 	}
