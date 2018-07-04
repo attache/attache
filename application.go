@@ -130,13 +130,13 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pc := make([]uintptr, 12)
-	pc = pc[:runtime.Callers(2, pc)]
+	pc := make([]uintptr, 4)
+	pc = pc[:runtime.Callers(4, pc)]
 	buf := strings.Builder{}
 	for _, f := range pc {
 		fn := runtime.FuncForPC(f)
 		if fn != nil {
-			fmt.Fprint(&buf, "\n", fn.Name())
+			fmt.Fprint(&buf, "\ntrace: ", fn.Name())
 		}
 	}
 

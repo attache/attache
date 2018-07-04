@@ -1,6 +1,8 @@
 package attache
 
-import "github.com/gorilla/schema"
+import (
+	"github.com/gorilla/schema"
+)
 
 var (
 	gsCache       = cache{}
