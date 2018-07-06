@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -27,27 +28,27 @@ type Application struct {
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	defer a.recover(w, r)
 
-	matched := a.r.root.lookup(r.URL.Path)
-	if matched == nil || (!matched.isLeaf() && len(matched.methods) == 0) {
+	n := a.r.root.lookup(r.URL.Path)
+	if n == nil || (!n.hasMount() && len(n.methods) == 0) {
 		Error(404)
 	}
 
-	stack := matched.stackFor(r.Method)
-	if stack == nil {
-		Error(405)
+	var s stack
+	s = append(s, n.guard...)
+
+	if n.hasMount() && len(s) == 0 {
+		n.mount.ServeHTTP(w, r)
 		return
 	}
 
-	// short-circuit context creation for
-	// unguarded mounted routes, since we won't use it
-	if matched.isLeaf() && len(stack) == 1 {
-		stack[0].Call(
-			[]reflect.Value{
-				reflect.ValueOf(w),
-				reflect.ValueOf(r),
-			},
-		)
-		return
+	if n.hasMount() {
+		s = append(s, reflect.ValueOf(n.mount.ServeHTTP))
+	} else {
+		if mainStack := n.methods[strings.ToUpper(r.Method)]; mainStack != nil {
+			s = append(s, mainStack...)
+		} else {
+			Error(405)
+		}
 	}
 
 	ctx := reflect.New(a.contextType.Elem()).Interface().(Context)
@@ -66,7 +67,7 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		res: w,
 	}
 
-	for _, x := range stack {
+	for _, x := range s {
 		injector.apply(x)
 	}
 }
@@ -154,6 +155,7 @@ func (a *Application) Run() error {
 var (
 	methodRx = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
 	mountRx  = regexp.MustCompile(`^MOUNT_(.*)$`)
+	guardRx  = regexp.MustCompile(`^GUARD_(.*)$`)
 )
 
 // Bootstrap attempts to create an Application to serve requests for
@@ -183,7 +185,7 @@ func Bootstrap(ctxType Context) (*Application, error) {
 		return nil, err
 	}
 
-	if err := bootstrapRoutes(&a, ctxType); err != nil {
+	if err := bootstrapRouter(&a, ctxType); err != nil {
 		return nil, err
 	}
 
@@ -248,12 +250,17 @@ func bootstrapFileServer(a *Application, impl Context) error {
 	return nil
 }
 
-func bootstrapRoutes(a *Application, impl Context) error {
+func bootstrapRouter(a *Application, impl Context) error {
 	v := reflect.ValueOf(impl)
 	t := v.Type()
 	found := 0
 
 	type (
+		guard struct {
+			path  string
+			stack stack
+		}
+
 		route struct {
 			method string
 			path   string
@@ -262,11 +269,11 @@ func bootstrapRoutes(a *Application, impl Context) error {
 
 		mount struct {
 			path    string
-			guard   reflect.Value
 			handler http.Handler
 		}
 	)
 
+	guards := make([]guard, 0, 32)
 	routes := make([]route, 0, 32)
 	mounts := make([]mount, 0, 32)
 	mountFnTyp := reflect.TypeOf((func() (http.Handler, error))(nil))
@@ -274,33 +281,17 @@ func bootstrapRoutes(a *Application, impl Context) error {
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
 
-		match := methodRx.FindStringSubmatch(m.Name)
-		if match != nil {
-			meth, path := match[1], pathForName(match[2])
+		if match := guardRx.FindStringSubmatch(m.Name); match != nil {
+			path := pathForName(match[1])
 
-			rt := route{
-				method: meth,
-				path:   path,
-				stack:  make(stack, 0, 3),
-			}
-
-			if bm, ok := t.MethodByName("BEFORE_" + match[2]); ok {
-				rt.stack = append(rt.stack, bm.Func)
-			}
-
-			rt.stack = append(rt.stack, m.Func)
-
-			if am, ok := t.MethodByName("AFTER_" + match[2]); ok {
-				rt.stack = append(rt.stack, am.Func)
-			}
-
-			routes = append(routes, rt)
-			found++
+			guards = append(guards, guard{
+				path:  path,
+				stack: stack{m.Func},
+			})
 			continue
 		}
 
-		match = mountRx.FindStringSubmatch(m.Name)
-		if match != nil {
+		if match := mountRx.FindStringSubmatch(m.Name); match != nil {
 			path := pathForName(match[1])
 
 			mt := mount{
@@ -330,11 +321,31 @@ func bootstrapRoutes(a *Application, impl Context) error {
 
 			mt.handler = h
 
-			if gm, ok := t.MethodByName("GUARD_" + match[1]); ok {
-				mt.guard = gm.Func
+			mounts = append(mounts, mt)
+			found++
+			continue
+		}
+
+		if match := methodRx.FindStringSubmatch(m.Name); match != nil {
+			meth, path := match[1], pathForName(match[2])
+
+			rt := route{
+				method: meth,
+				path:   path,
+				stack:  make(stack, 0, 3),
 			}
 
-			mounts = append(mounts, mt)
+			if bm, ok := t.MethodByName("BEFORE_" + match[2]); ok {
+				rt.stack = append(rt.stack, bm.Func)
+			}
+
+			rt.stack = append(rt.stack, m.Func)
+
+			if am, ok := t.MethodByName("AFTER_" + match[2]); ok {
+				rt.stack = append(rt.stack, am.Func)
+			}
+
+			routes = append(routes, rt)
 			found++
 			continue
 		}
@@ -347,20 +358,24 @@ func bootstrapRoutes(a *Application, impl Context) error {
 		}
 	}
 
-	for _, mt := range mounts {
-		if mt.guard.IsValid() {
-			if err := a.r.mountGuarded(mt.path, mt.guard, mt.handler); err != nil {
-				return BootstrapError{
-					Phase: fmt.Sprintf("mount %s", mt.path),
-					Cause: err,
-				}
+	sort.SliceStable(guards, func(i, j int) bool {
+		return guards[i].path < guards[j].path
+	})
+
+	for _, g := range guards {
+		if err := a.r.guard(g.path, g.stack); err != nil {
+			return BootstrapError{
+				Phase: fmt.Sprintf("guard %s", g.path),
+				Cause: err,
 			}
-		} else {
-			if err := a.r.mount(mt.path, mt.handler); err != nil {
-				return BootstrapError{
-					Phase: fmt.Sprintf("mount %s", mt.path),
-					Cause: err,
-				}
+		}
+	}
+
+	for _, mt := range mounts {
+		if err := a.r.mount(mt.path, mt.handler); err != nil {
+			return BootstrapError{
+				Phase: fmt.Sprintf("mount %s", mt.path),
+				Cause: err,
 			}
 		}
 	}
@@ -385,6 +400,7 @@ func bootstrapRoutes(a *Application, impl Context) error {
 
 	return nil
 }
+
 func pathForName(name string) string {
 	// sanitize name
 	name = strings.Replace(name, "_", "", -1)

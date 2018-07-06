@@ -1,13 +1,23 @@
 package attache
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
 type httpResult struct {
-	code   int
-	status string
+	code int
+	msg  string
+	json bool
+}
+
+func (x httpResult) MarshalJSON() ([]byte, error) {
+	buf := getbuf()
+	defer putbuf(buf)
+
+	fmt.Fprintf(buf, `{"error": %q}`, x.msg)
+	return buf.Bytes(), nil
 }
 
 func (x httpResult) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -15,12 +25,18 @@ func (x httpResult) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		x.code = 500
 	}
 
-	if x.status == "" {
-		x.status = http.StatusText(x.code)
-	}
-
 	w.WriteHeader(x.code)
-	w.Write([]byte(x.status))
+
+	if x.msg != "" {
+		if !x.json {
+			w.Write([]byte(x.msg))
+			return
+		}
+
+		if err := json.NewEncoder(w).Encode(x); err != nil {
+			panic(err)
+		}
+	}
 }
 
-func (x httpResult) String() string { return fmt.Sprintf("%d %s", x.code, x.status) }
+func (x httpResult) String() string { return fmt.Sprintf("%d %s", x.code, x.msg) }

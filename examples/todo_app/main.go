@@ -19,6 +19,8 @@ type TodoApp struct {
 	attache.DefaultViews
 	attache.DefaultDB
 	// attache.DefaultToken
+
+	allowed bool
 }
 
 func (c *TodoApp) Init(w http.ResponseWriter, r *http.Request) {
@@ -35,7 +37,27 @@ func (c *TodoApp) GET_Index(w http.ResponseWriter, r *http.Request) {
 	attache.RenderHTML(c, "index", w, nil)
 }
 
-func (c *TodoApp) MOUNT_Testmt() http.Handler {
+func (c *TodoApp) GUARD_() {
+	log.Println("guard 1")
+}
+
+func (c *TodoApp) GUARD_To() {
+	log.Println("guard 1.5")
+}
+
+func (c *TodoApp) GUARD_Tod() {
+	log.Println("guard 1.75")
+}
+
+func (c *TodoApp) GUARD_Todo() {
+	log.Println("guard 2")
+}
+
+func (c *TodoApp) GUARD_TodoList() {
+	log.Println("guard 3")
+}
+
+func (c *TodoApp) MOUNT_Testmt() (http.Handler, error) {
 	mux := chi.NewMux()
 	mux.Use(func(h http.Handler) http.Handler {
 		return http.HandlerFunc(
@@ -55,7 +77,8 @@ func (c *TodoApp) MOUNT_Testmt() http.Handler {
 		fmt.Println("matched 2")
 		fmt.Fprintf(w, "welcome")
 	})
-	return mux
+
+	return mux, nil
 }
 
 func main() {

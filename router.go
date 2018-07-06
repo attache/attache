@@ -1,6 +1,7 @@
 package attache
 
 import (
+	"fmt"
 	"net/http"
 	"path"
 	"reflect"
@@ -18,35 +19,182 @@ const (
 	errRoutePastMount   sentinelError = "illegal route: path in use by mount"
 )
 
+type stack []reflect.Value
+
+type node struct {
+	prefix string
+
+	guard   stack
+	methods map[string]stack
+	mount   http.Handler
+
+	kids map[byte]*node
+}
+
+func (n *node) isDefined() bool   { return n.hasHandlers() || n.hasMount() }
+func (n *node) hasMount() bool    { return n.mount != nil }
+func (n *node) hasChildren() bool { return len(n.kids) > 0 }
+func (n *node) hasHandlers() bool { return len(n.methods) > 0 }
+
+func (n *node) insert(path string, mustBeLeaf bool) (*node, error) {
+	return n.insert2(path, mustBeLeaf, nil)
+}
+
+// guards MUST be inserted in order of shortest path to longest
+func (n *node) insert2(path string, mustBeLeaf bool, guardStack stack) (*node, error) {
+	shared := n.sharedPrefix(path)
+
+	if shared == len(n.prefix) {
+		if shared == len(path) {
+			if mustBeLeaf && n.hasChildren() {
+				return nil, errMountOnKnownPath
+			}
+
+			return n, nil
+		}
+
+		remaining := path[shared:]
+		if next := n.kids[remaining[0]]; next != nil {
+			return next.insert2(remaining, mustBeLeaf, guardStack)
+		}
+
+		if n.hasMount() {
+			return nil, errRoutePastMount
+		}
+
+		newn := &node{
+			prefix:  remaining,
+			guard:   append(guardStack, n.guard...),
+			methods: map[string]stack{},
+			kids:    map[byte]*node{},
+		}
+
+		n.kids[newn.prefix[0]] = newn
+		return newn, nil
+	}
+
+	if shared == len(path) {
+		if mustBeLeaf {
+			return nil, errMountOnKnownPath
+		}
+
+		n.split(shared)
+		return n, nil
+	}
+
+	n.split(shared)
+
+	newn := &node{
+		prefix:  path[shared:],
+		guard:   append(guardStack, n.guard...),
+		methods: map[string]stack{},
+		kids:    map[byte]*node{},
+	}
+
+	n.kids[newn.prefix[0]] = newn
+	return newn, nil
+}
+
+func (n *node) lookup(remaining string) *node {
+	if n == nil {
+		return nil
+	}
+
+	shared := n.sharedPrefix(remaining)
+
+	// matches all of n's prefix?
+	if shared == len(n.prefix) {
+		// matches all of the remaining path?
+		if shared == len(remaining) || n.hasMount() {
+			// we've found a match
+			return n
+		}
+
+		// path remains, try to continue down the trie
+		remaining = remaining[shared:]
+		return n.kids[remaining[0]].lookup(remaining)
+	}
+
+	// regardless of whether we've matched the whole path remaining,
+	// we've stopped in the middle of a node, meaning there's no match
+	fmt.Println(n.kids)
+	return nil
+}
+
+func (n *node) sharedPrefix(path string) int {
+	max := len(n.prefix)
+	if len(path) < len(n.prefix) {
+		max = len(path)
+	}
+
+	for i := 0; i < max; i++ {
+		if n.prefix[i] != path[i] {
+			return i
+		}
+	}
+
+	return max
+}
+
+func (n *node) split(split int) {
+	start, end := n.prefix[:split], n.prefix[split:]
+
+	newn := &node{
+		prefix:  end,
+		guard:   n.guard,
+		methods: n.methods,
+		mount:   n.mount,
+		kids:    n.kids,
+	}
+
+	*n = node{
+		prefix:  start,
+		methods: map[string]stack{},
+		kids: map[byte]*node{
+			end[0]: newn,
+		},
+	}
+}
+
 type router struct {
 	root *node
 }
 
 func newrouter() router {
-	return router{newnode("/", nil, nil)}
+	return router{
+		&node{
+			prefix:  "/",
+			methods: map[string]stack{},
+			kids:    map[byte]*node{},
+		},
+	}
 }
 
 func (r *router) mount(path string, h http.Handler) error {
-	path = canonicalize(path, false)
-	h = http.StripPrefix(path, h)
+	path = canonicalize(path, true)
 
-	err := r.root.insert("", path, stack{reflect.ValueOf(h.ServeHTTP)}, true)
+	n, err := r.root.insert(path, true)
 	if err != nil {
 		return err
 	}
 
+	if n.hasHandlers() || n.hasMount() {
+		return errRouteExists
+	}
+
+	n.mount = http.StripPrefix(path, h)
 	return nil
 }
 
-func (r *router) mountGuarded(path string, guard reflect.Value, h http.Handler) error {
+func (r *router) guard(path string, guards stack) error {
 	path = canonicalize(path, false)
-	h = http.StripPrefix(path, h)
 
-	err := r.root.insert("", path, stack{guard, reflect.ValueOf(h.ServeHTTP)}, true)
+	n, err := r.root.insert(path, false)
 	if err != nil {
 		return err
 	}
 
+	n.guard = append(n.guard, guards...)
 	return nil
 }
 
@@ -54,10 +202,16 @@ func (r *router) handle(method, path string, s stack) error {
 	path = canonicalize(path, false)
 	method = strings.ToUpper(method)
 
-	err := r.root.insert(method, path, s, false)
+	n, err := r.root.insert(path, false)
 	if err != nil {
 		return err
 	}
+
+	if n.hasMount() || len(n.methods[method]) > 0 {
+		return errRouteExists
+	}
+
+	n.methods[method] = s
 
 	return nil
 }
@@ -88,155 +242,3 @@ func canonicalize(p string, trailingSlash bool) string {
 	}
 	return p
 }
-
-type stack []reflect.Value
-
-type node struct {
-	prefix string
-
-	methods map[string]stack
-	mounted stack
-
-	skids map[byte]*node
-}
-
-func newnode(prefix string, methods map[string]stack, mounted stack) *node {
-	n := &node{prefix: prefix}
-
-	if mounted != nil {
-		n.mounted = mounted
-	} else {
-		if methods == nil {
-			methods = map[string]stack{}
-		}
-
-		n.methods = methods
-		n.skids = map[byte]*node{}
-	}
-
-	return n
-}
-
-func (n *node) lookup(remaining string) *node {
-	if n == nil {
-		return nil
-	}
-
-	shared := n.sharedPrefix(remaining)
-
-	// matches all of n's prefix?
-	if shared == len(n.prefix) {
-		// matches all of the remaining path?
-		if shared == len(remaining) || n.isLeaf() {
-			// we've found a match
-			return n
-		}
-
-		// path remains, try to continue down the trie
-		remaining = remaining[shared:]
-		return n.findChild(remaining[0]).lookup(remaining)
-	}
-
-	// regardless of whether we've matched the whole path remaining,
-	// we've fallen in the middle of a node and so we do not have a match
-	return nil
-}
-
-func (n *node) stackFor(method string) stack {
-	if n.isLeaf() {
-		return n.mounted
-	}
-
-	return n.methods[method]
-}
-
-func (n *node) insert(method, path string, s stack, mount bool) error {
-	shared := n.sharedPrefix(path)
-
-	if shared == len(n.prefix) {
-		if shared == len(path) {
-			if mount {
-				// it's never valid to mount to a pre-existing node
-				return errMountOnKnownPath
-			}
-
-			if n.methods[method] != nil {
-				return errRouteExists
-			}
-
-			n.methods[method] = s
-			return nil
-		}
-
-		if n.isLeaf() {
-			return errRoutePastMount
-		}
-
-		path = path[shared:]
-		if next := n.findChild(path[0]); next != nil {
-			return next.insert(method, path, s, mount)
-		}
-
-		n.addChild(method, path, s, mount)
-		return nil
-	}
-
-	if shared == len(path) {
-		if mount {
-			// it's never valid to mount to a pre-existing node
-			return errMountOnKnownPath
-		}
-
-		n.split(shared)
-		// otherwise, there's no risk of a redefinition since we just split n
-		n.methods[method] = s
-		return nil
-	}
-
-	n.split(shared)
-	path = path[shared:]
-	n.addChild(method, path, s, mount)
-	return nil
-}
-
-func (n *node) sharedPrefix(path string) int {
-	max := len(n.prefix)
-	if len(path) < len(n.prefix) {
-		max = len(path)
-	}
-
-	for i := 0; i < max; i++ {
-		if n.prefix[i] != path[i] {
-			return i
-		}
-	}
-	return max
-}
-
-func (n *node) split(at int) {
-	var rest string
-	n.prefix, rest = n.prefix[:at], n.prefix[at:]
-	// create new child
-	newn := newnode(rest, n.methods, n.mounted)
-	// modify the new parent
-	n.methods = map[string]stack{}
-	n.mounted = nil
-	n.skids = map[byte]*node{
-		rest[0]: newn,
-	}
-}
-
-func (n *node) findChild(b byte) *node { return n.skids[b] }
-
-func (n *node) addChild(method, prefix string, s stack, mount bool) {
-	var newn *node
-	if mount {
-		newn = newnode(prefix, nil, s)
-	} else {
-		newn = newnode(prefix, map[string]stack{method: s}, nil)
-	}
-	label := prefix[0]
-	n.skids[label] = newn
-}
-
-func (n *node) isLeaf() bool { return n.mounted != nil }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,6 +28,8 @@ type Context struct {
 	DoModel  bool
 
 	Replace bool
+
+	JSONRoutes bool
 }
 
 type fieldDefs []string
@@ -37,7 +40,7 @@ func (f *fieldDefs) Set(s string) error { *f = append(*f, s); return nil }
 func (c *Context) recover(err *error) {
 	val := recover()
 	if val != nil {
-		*err = fmt.Errorf("%s", val)
+		*err = fmt.Errorf("%v", val)
 	}
 }
 
@@ -68,6 +71,7 @@ func (c *Context) init(args []string) error {
 	c.flags.BoolVar(&c.DoViews, "views", false, "generate views")
 	c.flags.BoolVar(&c.DoRoutes, "routes", false, "generate routes")
 	c.flags.BoolVar(&c.Replace, "replace", false, "replace existing files")
+	c.flags.BoolVar(&c.JSONRoutes, "json", false, "create JSON endpoints")
 	name := c.flags.String("n", "", "name of the resource")
 	table := c.flags.String("t", "", "name of table")
 	defs := &fieldDefs{}
@@ -89,11 +93,33 @@ func (c *Context) init(args []string) error {
 		return errors.New("must specify at least one field")
 	}
 
+	noSpec := false
 	// if none specified, do all
 	if !c.DoModel && !c.DoViews && !c.DoRoutes {
 		c.DoModel = true
 		c.DoViews = true
 		c.DoRoutes = true
+		noSpec = true
+	}
+
+	if c.JSONRoutes {
+		// implied
+		c.DoRoutes = true
+
+		if c.DoViews {
+			if noSpec {
+				// if the user didn't explicitly request views,
+				// we'll assume they don't need them for JSON
+				// endpoints, and so will skip their generation
+				c.DoViews = false
+			} else {
+				// if the user DID specifically request views,
+				// we'll still generate them but will give a
+				// warning that they're not used by default
+				// when generating JSON endpoints
+				log.Println("warning: views are unused when generating JSON routes")
+			}
+		}
 	}
 
 	// needed for more than just model
@@ -184,7 +210,17 @@ func (ctx *Context) do() error {
 	if ctx.DoRoutes {
 		buf.Reset()
 
-		tpl, err := template.New("").Parse(MustAssetString("templates/routes.tpl"))
+		var (
+			tpl *template.Template
+			err error
+		)
+
+		if ctx.JSONRoutes {
+			tpl, err = template.New("").Parse(MustAssetString("templates/routes.json.tpl"))
+		} else {
+			tpl, err = template.New("").Parse(MustAssetString("templates/routes.tpl"))
+		}
+
 		if err != nil {
 			return err
 		}

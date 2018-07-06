@@ -1,6 +1,7 @@
 package attache
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -28,8 +29,18 @@ func ErrorFatal(err error) {
 // the given status code and status text
 func ErrorMessage(code int, msg string, args ...interface{}) {
 	panic(httpResult{
-		code:   code,
-		status: fmt.Sprintf(msg, args...),
+		code: code,
+		msg:  fmt.Sprintf(msg, args...),
+	})
+}
+
+// ErrorMessageJSON immediately terminates the executing handler chain with
+// the given status code and a json body containing the status text
+func ErrorMessageJSON(code int, msg string, args ...interface{}) {
+	panic(httpResult{
+		code: code,
+		msg:  fmt.Sprintf(msg, args...),
+		json: true,
 	})
 }
 
@@ -55,12 +66,10 @@ func RedirectTemporary(path string) {
 	panic(http.RedirectHandler(path, http.StatusTemporaryRedirect))
 }
 
-// RenderHTML immediately terminates the executing handler chain by
-// rendering the view with the given name from the ViewCache attached
-// to ctx using data as the View's data argument. If an error
-// is encountered, a 500 Internal Server Error is written to w,
-// otherwise the rendered template is written to w with a Content-Type
-// of "text/html"
+// RenderHTML renders the view with the given name from the ViewCache attached
+// to ctx using data as the Execute's data argument.
+// The rendered template is written to w with a Content-Type of "text/html".
+// ErrorFatal is called for any error encountered
 func RenderHTML(ctx HasViews, name string, w http.ResponseWriter, data interface{}) {
 	buf, err := ctx.Views().Render(name, data)
 	if err != nil {
@@ -68,5 +77,18 @@ func RenderHTML(ctx HasViews, name string, w http.ResponseWriter, data interface
 	}
 
 	w.Header().Set("content-type", "text/html")
+	w.Write(buf)
+}
+
+// RenderJSON marshals data to JSON, then writes the data to w with a
+// Content-Type of "application/json". ErrorFatal is called for any
+// error encountered
+func RenderJSON(w http.ResponseWriter, data interface{}) {
+	buf, err := json.Marshal(data)
+	if err != nil {
+		ErrorFatal(err)
+	}
+
+	w.Header().Set("content-type", "application/json")
 	w.Write(buf)
 }

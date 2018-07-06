@@ -2,8 +2,7 @@ package attache
 
 const (
 	// views.go
-	d_ROOT_DIRECTORY = "./views"
-	d_LAYOUT_FILE    = "layout.tpl"
+	d_LAYOUT_FILE = "layout.tpl"
 
 	// bufferpool.go
 	d_BUF_SIZE  = 1024
