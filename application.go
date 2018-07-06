@@ -102,12 +102,11 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 			Claims: TokenClaims{},
 		}
 
-		cookie, _ := r.Cookie(t.conf.Cookie)
-
-		if cookie != nil {
-			if err := t.Decode([]byte(cookie.Value)); err != nil {
-				t.ClearCookie(w)
-				log.Println(err)
+		if authHeader := r.Header.Get("Authorization"); authHeader != "" {
+			if strings.HasPrefix(authHeader, "Bearer ") {
+				if err := t.Decode([]byte(authHeader[7:])); err != nil {
+					log.Println(err)
+				}
 			}
 		}
 
@@ -215,10 +214,6 @@ func bootstrapTryContextInit(impl Context) error {
 
 		if len(conf.Secret) == 0 {
 			return BootstrapError{Cause: errors.New("empty secret"), Phase: "check token config"}
-		}
-
-		if len(conf.Cookie) == 0 {
-			return BootstrapError{Cause: errors.New("empty cookie"), Phase: "check token config"}
 		}
 	}
 

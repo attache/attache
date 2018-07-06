@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"net/http"
 	"time"
 )
 
@@ -25,37 +24,6 @@ type Token struct {
 
 	Header TokenHeader
 	Claims TokenClaims
-}
-
-func (t Token) ClearCookie(w http.ResponseWriter) {
-	http.SetCookie(w, &http.Cookie{
-		HttpOnly: true,
-		Name:     t.conf.Cookie,
-		MaxAge:   -1,
-		Value:    "",
-	})
-}
-
-func (t Token) SaveCookie(w http.ResponseWriter) error {
-	data, err := t.Encode()
-	if err != nil {
-		return err
-	}
-
-	http.SetCookie(w, &http.Cookie{
-		HttpOnly: true,
-		Name:     t.conf.Cookie,
-		MaxAge:   t.conf.MaxAge,
-		Value:    string(data),
-	})
-
-	return nil
-}
-
-func (t Token) MustSaveCookie(w http.ResponseWriter) {
-	if err := t.SaveCookie(w); err != nil {
-		ErrorFatal(err)
-	}
 }
 
 func (t Token) encodeClaims() ([]byte, error) {
@@ -95,6 +63,7 @@ func (t Token) Validate() error {
 		if time.Unix(got, 0).Before(now) {
 			return errors.New("invalid token (expired)")
 		}
+
 	default:
 		return errors.New("invalid token (no expiration)")
 	}

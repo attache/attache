@@ -22,6 +22,4 @@ type FileServerConfig struct {
 // managed JWTs
 type TokenConfig struct {
 	Secret []byte
-	MaxAge int
-	Cookie string
 }

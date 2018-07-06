@@ -52,8 +52,6 @@ func (d *DefaultToken) SetToken(t Token) { d.tok = t }
 func (d *DefaultToken) CONFIG_Token() TokenConfig {
 	return TokenConfig{
 		Secret: []byte(envOrDefault("TOKEN_SECRET", "")),
-		Cookie: envOrDefault("TOKEN_COOKIE", "ATTACHE_TOKEN"),
-		MaxAge: 10 * 60 * 1000,
 	}
 }
 
