@@ -55,6 +55,21 @@ func (d *DefaultToken) CONFIG_Token() TokenConfig {
 	}
 }
 
+// DefaultSession is a type that can be embedded into a Context type
+// to enable user sessions
+type DefaultSession struct {
+	sess Session
+}
+
+func (d *DefaultSession) Session() Session      { return d.sess }
+func (d *DefaultSession) SetSesstion(s Session) { d.sess = s }
+func (d *DefaultSession) CONFIG_Session() SessionConfig {
+	return SessionConfig{
+		Name:   envOrDefault("SESSION_NAME", "AttacheSession"),
+		Secret: []byte(envOrDefault("SESSION_SECRET", "")),
+	}
+}
+
 // DefaultFileServer is a type that can be embedded into a Context type
 // to enable a static file server with default configuration options
 type DefaultFileServer struct{}

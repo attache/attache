@@ -7,10 +7,11 @@ import (
 )
 
 type injector struct {
-	app *Application
-	ctx Context
-	req *http.Request
-	res http.ResponseWriter
+	app      *Application
+	ctx      Context
+	req      *http.Request
+	res      http.ResponseWriter
+	provided []reflect.Value
 }
 
 var (
@@ -34,8 +35,20 @@ func (i injector) getFor(typ reflect.Type) reflect.Value {
 	case i.app.contextType.AssignableTo(typ):
 		return reflect.ValueOf(i.ctx)
 
-	// unknown types default to the zero value
+	// try lookup or default to the zero value
 	default:
+		for _, x := range i.provided {
+			xtyp := x.Type()
+
+			if xtyp.AssignableTo(typ) {
+				return x
+			}
+
+			if x.CanAddr() && reflect.PtrTo(xtyp).AssignableTo(typ) {
+				return x.Addr()
+			}
+		}
+
 		log.Printf("inject: unrecognized type %s, using zero value", typ)
 		return reflect.Zero(typ)
 	}

@@ -21,6 +21,7 @@ import (
 // concrete Context type
 type Application struct {
 	r           router
+	providers   stack
 	contextType reflect.Type
 }
 
@@ -67,6 +68,17 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		res: w,
 	}
 
+	for _, x := range a.providers {
+		result := x.Call(
+			[]reflect.Value{
+				reflect.ValueOf(ctx),
+				reflect.ValueOf(r),
+			},
+		)
+
+		injector.provided = append(injector.provided, result[0])
+	}
+
 	for _, x := range s {
 		injector.apply(x)
 	}
@@ -92,6 +104,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		impl.SetDB(db)
 	}
 
+	// initialize token when context has token capability
 	if impl, ok := ictx.(HasToken); ok {
 		t := Token{
 			conf: impl.CONFIG_Token(),
@@ -111,6 +124,15 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		}
 
 		impl.SetToken(t)
+	}
+
+	// initialize session when context has session capability
+	if impl, ok := ictx.(HasSession); ok {
+		conf := impl.CONFIG_Session()
+
+		s, _ := gsSessions.Get(r, conf.Name)
+
+		impl.SetSession(Session{s})
 	}
 
 	// initialize context
@@ -217,6 +239,15 @@ func bootstrapTryContextInit(impl Context) error {
 		}
 	}
 
+	// examine session config for validity
+	if impl, ok := impl.(HasSession); ok {
+		conf := impl.CONFIG_Session()
+
+		if len(conf.Secret) == 0 {
+			return BootstrapError{Cause: errors.New("empty secret"), Phase: "check session config"}
+		}
+	}
+
 	return nil
 }
 
@@ -272,10 +303,51 @@ func bootstrapRouter(a *Application, impl Context) error {
 	routes := make([]route, 0, 32)
 	mounts := make([]mount, 0, 32)
 	mountFnTyp := reflect.TypeOf((func() (http.Handler, error))(nil))
+	provideFnTyp := reflect.TypeOf((func(*http.Request) interface{})(nil))
 
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
 
+		// provider methods
+		if strings.HasPrefix(m.Name, "PROVIDE_") {
+			fnTyp := v.Method(m.Index).Type()
+
+			if !fnTyp.ConvertibleTo(provideFnTyp) {
+				return BootstrapError{
+					Cause: fmt.Errorf("%s does not have signature %s", m.Name, provideFnTyp),
+					Phase: "register providers",
+				}
+			}
+
+			a.providers = append(a.providers, m.Func)
+		}
+
+		// route methods
+		if match := methodRx.FindStringSubmatch(m.Name); match != nil {
+			meth, path := match[1], pathForName(match[2])
+
+			rt := route{
+				method: meth,
+				path:   path,
+				stack:  make(stack, 0, 3),
+			}
+
+			if bm, ok := t.MethodByName("BEFORE_" + match[2]); ok {
+				rt.stack = append(rt.stack, bm.Func)
+			}
+
+			rt.stack = append(rt.stack, m.Func)
+
+			if am, ok := t.MethodByName("AFTER_" + match[2]); ok {
+				rt.stack = append(rt.stack, am.Func)
+			}
+
+			routes = append(routes, rt)
+			found++
+			continue
+		}
+
+		// guard methods
 		if match := guardRx.FindStringSubmatch(m.Name); match != nil {
 			path := pathForName(match[1])
 
@@ -286,6 +358,7 @@ func bootstrapRouter(a *Application, impl Context) error {
 			continue
 		}
 
+		// mount methods
 		if match := mountRx.FindStringSubmatch(m.Name); match != nil {
 			path := pathForName(match[1])
 
@@ -317,30 +390,6 @@ func bootstrapRouter(a *Application, impl Context) error {
 			mt.handler = h
 
 			mounts = append(mounts, mt)
-			found++
-			continue
-		}
-
-		if match := methodRx.FindStringSubmatch(m.Name); match != nil {
-			meth, path := match[1], pathForName(match[2])
-
-			rt := route{
-				method: meth,
-				path:   path,
-				stack:  make(stack, 0, 3),
-			}
-
-			if bm, ok := t.MethodByName("BEFORE_" + match[2]); ok {
-				rt.stack = append(rt.stack, bm.Func)
-			}
-
-			rt.stack = append(rt.stack, m.Func)
-
-			if am, ok := t.MethodByName("AFTER_" + match[2]); ok {
-				rt.stack = append(rt.stack, am.Func)
-			}
-
-			routes = append(routes, rt)
 			found++
 			continue
 		}

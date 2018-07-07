@@ -23,3 +23,10 @@ type FileServerConfig struct {
 type TokenConfig struct {
 	Secret []byte
 }
+
+// SessionConfig provides configuration options for
+// user sessions
+type SessionConfig struct {
+	Name   string
+	Secret []byte
+}
