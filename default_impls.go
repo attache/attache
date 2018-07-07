@@ -1,6 +1,7 @@
 package attache
 
 import (
+	"net/http"
 	"os"
 )
 
@@ -74,9 +75,7 @@ func (d *DefaultSession) CONFIG_Session() SessionConfig {
 // to enable a static file server with default configuration options
 type DefaultFileServer struct{}
 
-func (d DefaultFileServer) CONFIG_FileServer() FileServerConfig {
-	return FileServerConfig{
-		Root:     "web/dist",
-		BasePath: "web",
-	}
+// MOUNT_Web provides a static file server under the path /web/*
+func (DefaultFileServer) MOUNT_Web() (http.Handler, error) {
+	return http.FileServer(http.Dir("web/dist")), nil
 }

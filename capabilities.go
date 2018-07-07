@@ -18,13 +18,6 @@ type HasDB interface {
 	SetDB(DB)
 }
 
-// HasFileServer is the interface implemented by Context types
-// that provide configuration to mount a static file server
-type HasFileServer interface {
-	Context
-	CONFIG_FileServer() FileServerConfig
-}
-
 // HasToken is the interface implemented by Context types
 // that use managed JWT tokens
 type HasToken interface {

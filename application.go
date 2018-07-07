@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"path"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -206,10 +204,6 @@ func Bootstrap(ctxType Context) (*Application, error) {
 		return nil, err
 	}
 
-	if err := bootstrapFileServer(&a, ctxType); err != nil {
-		return nil, err
-	}
-
 	if err := bootstrapRouter(&a, ctxType); err != nil {
 		return nil, err
 	}
@@ -252,31 +246,6 @@ func bootstrapTryContextInit(impl Context) error {
 		}
 
 		gsSessions.Codecs = append(gsSessions.Codecs, securecookie.CodecsFromPairs(conf.Secret)...)
-	}
-
-	return nil
-}
-
-func bootstrapFileServer(a *Application, impl Context) error {
-	if impl, ok := impl.(HasFileServer); ok {
-		conf := impl.CONFIG_FileServer()
-		info, err := os.Stat(conf.Root)
-		if err != nil {
-			return BootstrapError{
-				Cause: err,
-				Phase: "init file server",
-			}
-		}
-
-		if !info.IsDir() {
-			return BootstrapError{
-				Cause: errors.New(conf.Root + " is not a directory"),
-				Phase: "init file server",
-			}
-		}
-
-		basePath := path.Join("/", conf.BasePath)
-		a.r.mount(basePath, http.FileServer(http.Dir(conf.Root)))
 	}
 
 	return nil
