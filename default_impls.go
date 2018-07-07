@@ -61,8 +61,8 @@ type DefaultSession struct {
 	sess Session
 }
 
-func (d *DefaultSession) Session() Session      { return d.sess }
-func (d *DefaultSession) SetSesstion(s Session) { d.sess = s }
+func (d *DefaultSession) Session() Session     { return d.sess }
+func (d *DefaultSession) SetSession(s Session) { d.sess = s }
 func (d *DefaultSession) CONFIG_Session() SessionConfig {
 	return SessionConfig{
 		Name:   envOrDefault("SESSION_NAME", "AttacheSession"),
