@@ -15,6 +15,7 @@ import (
 	"unicode"
 
 	"github.com/go-chi/chi/middleware"
+	"github.com/gorilla/securecookie"
 )
 
 // An Application routes HTTP traffic to an instance of its associated
@@ -76,7 +77,7 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			},
 		)
 
-		injector.provided = append(injector.provided, result[0])
+		injector.provided = append(injector.provided, reflect.ValueOf(result[0].Interface()))
 	}
 
 	for _, x := range s {
@@ -130,7 +131,10 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 	if impl, ok := ictx.(HasSession); ok {
 		conf := impl.CONFIG_Session()
 
-		s, _ := gsSessions.Get(r, conf.Name)
+		s, err := gsSessions.Get(r, conf.Name)
+		if err != nil {
+			log.Println(err)
+		}
 
 		impl.SetSession(Session{s})
 	}
@@ -246,6 +250,8 @@ func bootstrapTryContextInit(impl Context) error {
 		if len(conf.Secret) == 0 {
 			return BootstrapError{Cause: errors.New("empty secret"), Phase: "check session config"}
 		}
+
+		gsSessions.Codecs = append(gsSessions.Codecs, securecookie.CodecsFromPairs(conf.Secret)...)
 	}
 
 	return nil
