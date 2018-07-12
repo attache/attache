@@ -134,6 +134,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 			log.Println(err)
 		}
 
+		s.Options.HttpOnly = true
 		impl.SetSession(Session{s})
 	}
 
