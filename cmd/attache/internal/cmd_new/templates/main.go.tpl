@@ -8,13 +8,16 @@ import (
 )
 
 type {{.Name}} struct {
-    attache.BaseContext // required
+    /* required */
+    attache.BaseContext 
 
-    // default capability implementations
+    /* default capability implementations */
     attache.DefaultFileServer
     attache.DefaultViews
-    attache.DefaultDB
-    attache.DefaultToken 
+    // attache.DefaultRequestResponse
+    // attache.DefaultDB
+    // attache.DefaultToken 
+    // attache.DefaultSession
 }
 
 func (c *{{.Name}}) Init(w http.ResponseWriter, r *http.Request) {

@@ -56,6 +56,20 @@ func (d *DefaultToken) CONFIG_Token() TokenConfig {
 	}
 }
 
+type DefaultRequestResponse struct {
+	req *http.Request
+	rw  http.ResponseWriter
+}
+
+func (d *DefaultRequestResponse) setRequest(r *http.Request)              { d.req = r }
+func (d *DefaultRequestResponse) setResponseWriter(w http.ResponseWriter) { d.rw = w }
+
+// Request returns the *http.Request associated with d
+func (d *DefaultRequestResponse) Request() *http.Request { return d.req }
+
+// ResponseWriter returns the http.ResponseWriter associated with d
+func (d *DefaultRequestResponse) ResponseWriter() http.ResponseWriter { return d.rw }
+
 // DefaultSession is a type that can be embedded into a Context type
 // to enable user sessions
 type DefaultSession struct {

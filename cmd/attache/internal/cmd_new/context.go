@@ -52,6 +52,7 @@ func (c *Context) do(args []string) error {
 	buildErr := Dir{
 		Name: c.Dir,
 		Files: []File{
+			{Name: ".gitignore", Body: []byte("secret")},
 			{Name: ".at-conf.json", BodyFunc: c.FileTemplate(".at-conf.json.tpl")},
 			{Name: "main.go", BodyFunc: c.FileTemplate("main.go.tpl")},
 		},

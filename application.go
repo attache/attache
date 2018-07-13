@@ -84,13 +84,24 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) error {
+
+	// initialize request if context has request capability
+	if impl, ok := ictx.(HasRequest); ok {
+		impl.setRequest(r)
+	}
+
+	// initialize response writer if context has response writer capability
+	if impl, ok := ictx.(HasResponseWriter); ok {
+		impl.setResponseWriter(w)
+	}
+
 	// initialize views when context has view capability
 	if impl, ok := ictx.(HasViews); ok {
 		views, err := gsCache.viewsFor(impl.CONFIG_Views())
 		if err != nil {
 			return err
 		}
-		impl.SetViews(views)
+		impl.setViews(views)
 	}
 
 	// initialize db when context has db capability
@@ -100,7 +111,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 			return err
 		}
 
-		impl.SetDB(db)
+		impl.setDB(db)
 	}
 
 	// initialize token when context has token capability
@@ -122,7 +133,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 			}
 		}
 
-		impl.SetToken(t)
+		impl.setToken(t)
 	}
 
 	// initialize session when context has session capability
@@ -135,7 +146,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		}
 
 		s.Options.HttpOnly = true
-		impl.SetSession(Session{s})
+		impl.setSession(Session{s})
 	}
 
 	// initialize context

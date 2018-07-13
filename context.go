@@ -13,11 +13,11 @@ var ctxContextKey = struct{ x int }{0xfeef}
 type Context interface {
 	Init(http.ResponseWriter, *http.Request)
 
-	embeddedBase()
+	embedRequired()
 }
 
 // BaseContext must be embedded into any Context implementation,
 // thus enforcing that all Context implementations are struct types
 type BaseContext struct{}
 
-func (*BaseContext) embeddedBase() {}
+func (BaseContext) embedRequired() {}

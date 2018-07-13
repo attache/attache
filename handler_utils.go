@@ -44,6 +44,14 @@ func ErrorMessageJSON(code int, msg string, args ...interface{}) {
 	})
 }
 
+func Must(callResult ...interface{}) {
+	for _, elt := range callResult {
+		if err, ok := elt.(error); ok {
+			ErrorFatal(err)
+		}
+	}
+}
+
 // Success immediately terminates the executing handler chain with
 // a 200 OK
 func Success() { Error(200) }

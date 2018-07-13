@@ -1,37 +1,49 @@
 package attache
 
+import "net/http"
+
+// HasRequest is the interface implemented by Context types
+// that store an *http.Request
+type HasRequest interface {
+	Request() *http.Request
+	setRequest(*http.Request)
+}
+
+// HasResponseWriter is the interface implemented by Context types
+// that store an http.ResponseWriter
+type HasResponseWriter interface {
+	ResponseWriter() http.ResponseWriter
+	setResponseWriter(http.ResponseWriter)
+}
+
 // HasViews is the interface implemented by Context types
 // that use server-rendered views
 type HasViews interface {
-	Context
 	CONFIG_Views() ViewConfig
 	Views() ViewCache
-	SetViews(ViewCache)
+	setViews(ViewCache)
 }
 
 // HasDB is the interaface implemented by Context types
 // that use a database connection
 type HasDB interface {
-	Context
 	CONFIG_DB() DBConfig
 	DB() DB
-	SetDB(DB)
+	setDB(DB)
 }
 
 // HasToken is the interface implemented by Context types
 // that use managed JWT tokens
 type HasToken interface {
-	Context
 	CONFIG_Token() TokenConfig
 	Token() Token
-	SetToken(t Token)
+	setToken(t Token)
 }
 
 // HasSession is the interface implemented by Context types
 // that use user sessions
 type HasSession interface {
-	Context
 	CONFIG_Session() SessionConfig
 	Session() Session
-	SetSession(s Session)
+	setSession(s Session)
 }
