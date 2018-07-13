@@ -5,12 +5,14 @@ import (
 	"os"
 )
 
-func envOrDefault(s, dflt string) string {
-	if got := os.Getenv(s); got != "" {
-		return got
-	}
-	return dflt
-}
+var (
+	_ HasViews          = (*DefaultViews)(nil)
+	_ HasSession        = (*DefaultSession)(nil)
+	_ HasToken          = (*DefaultToken)(nil)
+	_ HasDB             = (*DefaultDB)(nil)
+	_ HasRequest        = (*DefaultRequestResponse)(nil)
+	_ HasResponseWriter = (*DefaultRequestResponse)(nil)
+)
 
 // DefaultViews is a type that can be embedded into a Context type
 // to enable views with default configuration options
@@ -19,7 +21,7 @@ type DefaultViews struct {
 }
 
 func (d *DefaultViews) Views() ViewCache     { return d.views }
-func (d *DefaultViews) SetViews(v ViewCache) { d.views = v }
+func (d *DefaultViews) setViews(v ViewCache) { d.views = v }
 func (d *DefaultViews) CONFIG_Views() ViewConfig {
 	return ViewConfig{
 		Root: "views",
@@ -34,7 +36,7 @@ type DefaultDB struct {
 }
 
 func (d *DefaultDB) DB() DB      { return d.db }
-func (d *DefaultDB) SetDB(db DB) { d.db = db }
+func (d *DefaultDB) setDB(db DB) { d.db = db }
 func (d *DefaultDB) CONFIG_DB() DBConfig {
 	return DBConfig{
 		Driver: envOrDefault("DB_DRIVER", ""),
@@ -49,7 +51,7 @@ type DefaultToken struct {
 }
 
 func (d *DefaultToken) Token() Token     { return d.tok }
-func (d *DefaultToken) SetToken(t Token) { d.tok = t }
+func (d *DefaultToken) setToken(t Token) { d.tok = t }
 func (d *DefaultToken) CONFIG_Token() TokenConfig {
 	return TokenConfig{
 		Secret: []byte(envOrDefault("TOKEN_SECRET", "")),
@@ -77,7 +79,7 @@ type DefaultSession struct {
 }
 
 func (d *DefaultSession) Session() Session     { return d.sess }
-func (d *DefaultSession) SetSession(s Session) { d.sess = s }
+func (d *DefaultSession) setSession(s Session) { d.sess = s }
 func (d *DefaultSession) CONFIG_Session() SessionConfig {
 	return SessionConfig{
 		Name:   envOrDefault("SESSION_NAME", "AttacheSession"),
@@ -92,4 +94,11 @@ type DefaultFileServer struct{}
 // MOUNT_Web provides a static file server under the path /web/*
 func (DefaultFileServer) MOUNT_Web() (http.Handler, error) {
 	return http.FileServer(http.Dir("web/dist")), nil
+}
+
+func envOrDefault(s, dflt string) string {
+	if got := os.Getenv(s); got != "" {
+		return got
+	}
+	return dflt
 }
