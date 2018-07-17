@@ -148,7 +148,9 @@ func (n *node) split(split int) {
 	}
 
 	*n = node{
-		prefix:  start,
+		prefix: start,
+		// retain our guard stack
+		guard:   newn.guard,
 		methods: map[string]stack{},
 		kids: map[byte]*node{
 			end[0]: newn,
@@ -241,4 +243,38 @@ func canonicalize(p string, trailingSlash bool) string {
 		return p + "/"
 	}
 	return p
+}
+
+func dump(root *node, soFar string, deep int) {
+	const indent = "  "
+
+	joined := soFar
+	if root.prefix != "" {
+		joined += root.prefix
+	}
+
+	if root.hasMount() {
+		fmt.Printf("%s%s %s", strings.Repeat(indent, deep), joined, "(mounted)")
+	} else {
+		fmt.Printf("%s%s", strings.Repeat(indent, deep), joined)
+		methods := []string{}
+		for m := range root.methods {
+			methods = append(methods, m)
+		}
+
+		if len(methods) > 0 {
+			fmt.Printf(" %v", methods)
+		}
+	}
+
+	if len(root.guard) > 0 {
+		fmt.Printf(" (%d guards)", len(root.guard))
+	}
+
+	fmt.Println()
+
+	for sign, kid := range root.kids {
+		fmt.Println(strings.Repeat(indent, deep), "child:", string([]byte{sign}))
+		dump(kid, joined, deep+1)
+	}
 }

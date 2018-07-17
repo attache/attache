@@ -390,7 +390,42 @@ func bootstrapRouter(a *Application, impl Context) error {
 	}
 
 	sort.SliceStable(guards, func(i, j int) bool {
-		return guards[i].path < guards[j].path
+		var (
+			pathI, pathJ = guards[i].path, guards[j].path
+			lenI, lenJ   = len(pathI), len(pathJ)
+		)
+
+		if lenI == lenJ {
+			return pathI < pathJ
+		}
+
+		return lenI < lenJ
+	})
+
+	sort.SliceStable(mounts, func(i, j int) bool {
+		var (
+			pathI, pathJ = mounts[i].path, mounts[j].path
+			lenI, lenJ   = len(pathI), len(pathJ)
+		)
+
+		if lenI == lenJ {
+			return pathI < pathJ
+		}
+
+		return lenI < lenJ
+	})
+
+	sort.SliceStable(routes, func(i, j int) bool {
+		var (
+			pathI, pathJ = routes[i].path, routes[j].path
+			lenI, lenJ   = len(pathI), len(pathJ)
+		)
+
+		if lenI == lenJ {
+			return pathI < pathJ
+		}
+
+		return lenI < lenJ
 	})
 
 	for _, g := range guards {
@@ -428,6 +463,10 @@ func bootstrapRouter(a *Application, impl Context) error {
 			}
 		}
 	}
+
+	fmt.Println(" ======== ")
+	dump(a.r.root, "", 0)
+	fmt.Println(" ======== ")
 
 	return nil
 }

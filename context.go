@@ -18,6 +18,9 @@ type Context interface {
 
 // BaseContext must be embedded into any Context implementation,
 // thus enforcing that all Context implementations are struct types
-type BaseContext struct{}
+type BaseContext struct {
+	// ViewData can be used to store view-specific data
+	ViewData interface{}
+}
 
 func (BaseContext) embedRequired() {}

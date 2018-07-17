@@ -1,10 +1,8 @@
 package attache
 
 import (
-	"fmt"
 	"net/http"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -77,26 +75,4 @@ func TestNodes(t *testing.T) {
 	}
 
 	dump(r.root, "", 0)
-}
-
-func dump(root *node, soFar string, deep int) {
-	joined := soFar
-	if root.prefix != "" {
-		joined += root.prefix
-	}
-
-	if root.hasMount() {
-		fmt.Println(strings.Repeat(" ", deep), joined, "(mount)")
-	} else {
-		methods := []string{}
-		for m := range root.methods {
-			methods = append(methods, m)
-		}
-		fmt.Println(strings.Repeat(" ", deep), joined, methods)
-	}
-
-	for sign, kid := range root.kids {
-		fmt.Println(strings.Repeat(" ", deep), "child:", string([]byte{sign}))
-		dump(kid, joined, deep+1)
-	}
 }
