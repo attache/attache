@@ -273,8 +273,7 @@ func dump(root *node, soFar string, deep int) {
 
 	fmt.Println()
 
-	for sign, kid := range root.kids {
-		fmt.Println(strings.Repeat(indent, deep), "child:", string([]byte{sign}))
+	for _, kid := range root.kids {
 		dump(kid, joined, deep+1)
 	}
 }
