@@ -27,7 +27,7 @@ $> go get -u github.com/mccolljr/attache/...
 ```
 
 ### Usage
-The CLI is the canonical way to start a new Attache application. An example of a working application can be found in 	`examples/todo_app`
+The CLI is the canonical way to start a new Attache application. An example of a working application can be found in `examples/todo_app`
 
 ### CLI Usage
 

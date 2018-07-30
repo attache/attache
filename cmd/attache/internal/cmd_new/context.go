@@ -2,6 +2,7 @@ package cmd_new
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -28,9 +29,13 @@ func (c *Context) do(args []string) error {
 	}
 
 	c.flags = flag.NewFlagSet("new", flag.ContinueOnError)
-	name := c.flags.String("n", "App", "application name")
+	name := c.flags.String("n", "", "application name")
 	if err := c.flags.Parse(args); err != nil {
 		return err
+	}
+
+	if *name == "" {
+		return errors.New("must provide name with -n")
 	}
 
 	c.Name = strcase.ToCamel(*name)
@@ -39,10 +44,10 @@ func (c *Context) do(args []string) error {
 	info, err := os.Stat(filepath.Join(cwd, c.Dir))
 	if err == nil {
 		if info.IsDir() {
-			return fmt.Errorf("%s already exists and is not a directory", c.Dir)
+			return fmt.Errorf("directory %s already exists", c.Dir)
 		}
 
-		return fmt.Errorf("directory %s already exists", c.Dir)
+		return fmt.Errorf("%s already exists and is not a directory", c.Dir)
 	}
 
 	if !os.IsNotExist(err) {

@@ -13,7 +13,7 @@ const helpText = `attache: cli for the attache framework
 
 COMMANDS:
 	new: create a new project
-	gen: generate models, views, and routes
+	gen: generate models, views, and/or routes
 `
 
 func init() {

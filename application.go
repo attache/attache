@@ -24,42 +24,54 @@ type Application struct {
 	contextType reflect.Type
 }
 
-// ServeHTTP implements http.Handler for *Application
+// ServeHTTP implements http.Handler for *Application.
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// Ensure a's recovery method runs.
 	defer a.recover(w, r)
 
+	// Try to locate the handler stack for the request's path.
 	n := a.r.root.lookup(r.URL.Path)
 	if n == nil || (!n.hasMount() && len(n.methods) == 0) {
+		// No endpoint for the path; fail with a 404
 		Error(404)
 	}
 
+	// Create a local copy of n's stack.
 	var s stack
 	s = append(s, n.guard...)
 
+	// Short-circuit for mounted routes with no guards.
 	if n.hasMount() && len(s) == 0 {
 		n.mount.ServeHTTP(w, r)
 		return
 	}
 
 	if n.hasMount() {
+		// Add the mounted handler's ServeHTTP method to the stack
 		s = append(s, reflect.ValueOf(n.mount.ServeHTTP))
 	} else {
 		if mainStack := n.methods[strings.ToUpper(r.Method)]; mainStack != nil {
+			// Add the handlers from the main stack (optional BEFORE_..., [METHOD]_..., and optional AFTER_...)
+			// to the request handler stack
 			s = append(s, mainStack...)
 		} else {
+			// This particular HTTP method isn't allowed; fail with a 405
 			Error(405)
 		}
 	}
 
+	// Initialize an instance of the bootstrapped type.
 	ctx := reflect.New(a.contextType.Elem()).Interface().(Context)
 
-	// initialize the context, or die with 500
+	// Initialize the context, or die with 500
 	if err := initContextInstance(ctx, w, r); err != nil {
 		log.Println(err)
 		httpResult{code: 500}.ServeHTTP(w, r)
 		return
 	}
 
+	// Create a new injector for this request.
+	// TODO: should we cache these?
 	injector := injector{
 		app: a,
 		ctx: ctx,
@@ -67,6 +79,7 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		res: w,
 	}
 
+	// Run all the registered providers and add their provided values to the injector.
 	for _, x := range a.providers {
 		result := x.Call(
 			[]reflect.Value{
@@ -78,24 +91,26 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		injector.provided = append(injector.provided, reflect.ValueOf(result[0].Interface()))
 	}
 
+	// Execute the completed stack.
 	for _, x := range s {
 		injector.apply(x)
 	}
 }
 
+// Initialized a Context instance for use.
 func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) error {
 
-	// initialize request if context has request capability
+	// Initialize request if context has request capability
 	if impl, ok := ictx.(HasRequest); ok {
 		impl.setRequest(r)
 	}
 
-	// initialize response writer if context has response writer capability
+	// Initialize response writer if context has response writer capability
 	if impl, ok := ictx.(HasResponseWriter); ok {
 		impl.setResponseWriter(w)
 	}
 
-	// initialize views when context has view capability
+	// Initialize views when context has view capability
 	if impl, ok := ictx.(HasViews); ok {
 		views, err := gsCache.viewsFor(impl.CONFIG_Views())
 		if err != nil {
@@ -104,7 +119,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		impl.setViews(views)
 	}
 
-	// initialize db when context has db capability
+	// Initialize db when context has db capability
 	if impl, ok := ictx.(HasDB); ok {
 		db, err := gsCache.dbFor(impl.CONFIG_DB())
 		if err != nil {
@@ -114,7 +129,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		impl.setDB(db)
 	}
 
-	// initialize token when context has token capability
+	// Initialize token when context has token capability
 	if impl, ok := ictx.(HasToken); ok {
 		t := Token{
 			conf: impl.CONFIG_Token(),
@@ -136,7 +151,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		impl.setToken(t)
 	}
 
-	// initialize session when context has session capability
+	// Initialize session when context has session capability
 	if impl, ok := ictx.(HasSession); ok {
 		conf := impl.CONFIG_Session()
 
@@ -149,7 +164,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		impl.setSession(Session{s})
 	}
 
-	// initialize context
+	// Initialize context
 	ictx.Init(w, r)
 
 	return nil
@@ -189,14 +204,12 @@ func (a *Application) Run() error {
 
 var (
 	methodRx = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
-	mountRx  = regexp.MustCompile(`^MOUNT_(.*)$`)
-	guardRx  = regexp.MustCompile(`^GUARD_(.*)$`)
 )
 
 // Bootstrap attempts to create an Application to serve requests for
 // the provided concrete Context type. If an error is encountered
 // during the bootstrapping process, it is returned.
-// If a nil *Application is returned, the returned error will be non-nil
+// If a nil *Application is returned, the returned error will be non-nil.
 func Bootstrap(ctxType Context) (*Application, error) {
 	var (
 		v = reflect.ValueOf(ctxType)
@@ -224,7 +237,7 @@ func Bootstrap(ctxType Context) (*Application, error) {
 }
 
 func bootstrapTryContextInit(impl Context) error {
-	// attempt to load views, if supported by context
+	// Attempt to load views, if supported by context
 	if impl, ok := impl.(HasViews); ok {
 		_, err := gsCache.viewsFor(impl.CONFIG_Views())
 		if err != nil {
@@ -232,7 +245,7 @@ func bootstrapTryContextInit(impl Context) error {
 		}
 	}
 
-	// attempt db connection, if supported by context
+	// Attempt db connection, if supported by context
 	if impl, ok := impl.(HasDB); ok {
 		_, err := gsCache.dbFor(impl.CONFIG_DB())
 		if err != nil {
@@ -240,7 +253,7 @@ func bootstrapTryContextInit(impl Context) error {
 		}
 	}
 
-	// examine token config for validity
+	// Examine token config for validity
 	if impl, ok := impl.(HasToken); ok {
 		conf := impl.CONFIG_Token()
 
@@ -249,7 +262,7 @@ func bootstrapTryContextInit(impl Context) error {
 		}
 	}
 
-	// examine session config for validity
+	// Examine session config for validity
 	if impl, ok := impl.(HasSession); ok {
 		conf := impl.CONFIG_Session()
 
@@ -266,50 +279,59 @@ func bootstrapTryContextInit(impl Context) error {
 func bootstrapRouter(a *Application, impl Context) error {
 	v := reflect.ValueOf(impl)
 	t := v.Type()
-	found := 0
 
+	// Types only used for bootstrapping.
+	// Defined in scope to unclutter the global namespace.
 	type (
+		// A guard represents a guard definition
 		guard struct {
 			path  string
 			stack stack
 		}
 
+		// A route represents an endpoint definition
 		route struct {
 			method string
 			path   string
 			stack  stack
 		}
 
+		// A mount represents a mount definition
 		mount struct {
 			path    string
 			handler http.Handler
 		}
 	)
 
+	// Pre-allocate slices for guard, route, and mount definitions
 	guards := make([]guard, 0, 32)
 	routes := make([]route, 0, 32)
 	mounts := make([]mount, 0, 32)
+
+	// The function signature expected of MOUNT_ methods, as a reflect.Type
 	mountFnTyp := reflect.TypeOf((func() (http.Handler, error))(nil))
+
+	// The function signature expected of PROVIDE_ methods, as a reflect.Type
 	provideFnTyp := reflect.TypeOf((func(*http.Request) interface{})(nil))
 
 	for i := 0; i < t.NumMethod(); i++ {
 		m := t.Method(i)
 
-		// provider methods
+		// Provider methods
 		if strings.HasPrefix(m.Name, "PROVIDE_") {
 			fnTyp := v.Method(m.Index).Type()
 
 			if !fnTyp.ConvertibleTo(provideFnTyp) {
 				return BootstrapError{
 					Cause: fmt.Errorf("%s does not have signature %s", m.Name, provideFnTyp),
-					Phase: "register providers",
+					Phase: fmt.Sprint("check provider ", m.Name),
 				}
 			}
 
 			a.providers = append(a.providers, m.Func)
 		}
 
-		// route methods
+		// Route methods
 		if match := methodRx.FindStringSubmatch(m.Name); match != nil {
 			meth, path := match[1], pathForName(match[2])
 
@@ -330,13 +352,12 @@ func bootstrapRouter(a *Application, impl Context) error {
 			}
 
 			routes = append(routes, rt)
-			found++
 			continue
 		}
 
-		// guard methods
-		if match := guardRx.FindStringSubmatch(m.Name); match != nil {
-			path := pathForName(match[1])
+		// Guard methods
+		if strings.HasPrefix(m.Name, "GUARD_") {
+			path := pathForName(m.Name[6:])
 
 			guards = append(guards, guard{
 				path:  path,
@@ -345,9 +366,9 @@ func bootstrapRouter(a *Application, impl Context) error {
 			continue
 		}
 
-		// mount methods
-		if match := mountRx.FindStringSubmatch(m.Name); match != nil {
-			path := pathForName(match[1])
+		// Mount methods
+		if strings.HasPrefix(m.Name, "MOUNT_") {
+			path := pathForName(m.Name[6:])
 
 			mt := mount{
 				path: path,
@@ -369,7 +390,7 @@ func bootstrapRouter(a *Application, impl Context) error {
 
 			if err != nil {
 				return BootstrapError{
-					Cause: fmt.Errorf("%s does not have signature %s", m.Name, mountFnTyp),
+					Cause: fmt.Errorf("error: %s", err),
 					Phase: fmt.Sprintf("mount %s", path),
 				}
 			}
@@ -377,17 +398,23 @@ func bootstrapRouter(a *Application, impl Context) error {
 			mt.handler = h
 
 			mounts = append(mounts, mt)
-			found++
 			continue
 		}
 	}
 
-	if found == 0 {
+	// Bootstrap was called for a type that didn't provide any final request handlers (routes or mounts)ß.
+	// This is most likely developer error.
+	// Rather than silently continue, we'll warn the developer and fail.
+	if len(routes)+len(mounts) == 0 {
 		return BootstrapError{
 			Phase: "register routes",
 			Cause: errors.New("no routes defined"),
 		}
 	}
+
+	// The order of insertion is important for guards, mounts, and routes.
+	// In order to ensure correctness, we need to sort all 3 lists with
+	// the same set of rules: by path length (short to long), then alphabetically.
 
 	sort.SliceStable(guards, func(i, j int) bool {
 		var (
@@ -428,6 +455,9 @@ func bootstrapRouter(a *Application, impl Context) error {
 		return lenI < lenJ
 	})
 
+	// Once we've sorted the guards, mounts, and routes, we can
+	// actually register them to the Application's router
+
 	for _, g := range guards {
 		if err := a.r.guard(g.path, g.stack); err != nil {
 			return BootstrapError{
@@ -464,6 +494,7 @@ func bootstrapRouter(a *Application, impl Context) error {
 		}
 	}
 
+	// Development: log the list of registered routes, etc.
 	fmt.Println(" ======== ")
 	dump(a.r.root, "", 0)
 	fmt.Println(" ======== ")
@@ -471,8 +502,9 @@ func bootstrapRouter(a *Application, impl Context) error {
 	return nil
 }
 
+// Calculates an HTTP request path based on a go method name.
 func pathForName(name string) string {
-	// sanitize name
+	// Ignore (i.e remove) any underscores
 	name = strings.Replace(name, "_", "", -1)
 	result := strings.Builder{}
 	size := len(name)
@@ -498,6 +530,7 @@ func pathForName(name string) string {
 		}
 	}
 
+	// Make sure we encode the last segment
 	result.WriteByte('/')
 	result.WriteString(strings.ToLower(name[start:]))
 
