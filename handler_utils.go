@@ -78,14 +78,17 @@ func RedirectTemporary(path string) {
 // to ctx using data as the Execute's data argument.
 // The rendered template is written to w with a Content-Type of "text/html".
 // ErrorFatal is called for any error encountered
-func RenderHTML(ctx HasViews, name string, w http.ResponseWriter, data interface{}) {
-	buf, err := ctx.Views().Render(name, data)
+func RenderHTML(ctx interface {
+	Context
+	HasViews
+}, name string) {
+	buf, err := ctx.Views().Render(name, ctx)
 	if err != nil {
 		ErrorFatal(err)
 	}
 
-	w.Header().Set("content-type", "text/html")
-	w.Write(buf)
+	ctx.ResponseWriter().Header().Set("content-type", "text/html")
+	ctx.ResponseWriter().Write(buf)
 }
 
 // RenderJSON marshals data to JSON, then writes the data to w with a
