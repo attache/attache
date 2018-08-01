@@ -8,15 +8,13 @@ import (
 )
 
 type {{.Name}} struct {
-    /* required */
+    // required
     attache.BaseContext 
 
-    /* default capability implementations */
+    // capabilities
     attache.DefaultFileServer
     attache.DefaultViews
-    // attache.DefaultRequestResponse
     // attache.DefaultDB
-    // attache.DefaultToken 
     // attache.DefaultSession
 }
 

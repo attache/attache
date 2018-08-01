@@ -12,15 +12,25 @@ var ctxContextKey = struct{ x int }{0xfeef}
 // Context
 type Context interface {
 	Init(http.ResponseWriter, *http.Request)
+	Request() *http.Request
+	ResponseWriter() http.ResponseWriter
 
-	embedRequired()
+	// require embedding of BaseContext
+	baseContext() *BaseContext
 }
 
 // BaseContext must be embedded into any Context implementation,
 // thus enforcing that all Context implementations are struct types
 type BaseContext struct {
-	// ViewData can be used to store view-specific data
-	ViewData interface{}
+	baseReq *http.Request
+	baseRw  http.ResponseWriter
 }
 
-func (BaseContext) embedRequired() {}
+// Request returns the *http.Request for the current request scope
+func (b *BaseContext) Request() *http.Request { return b.baseReq }
+
+// ResponseWriter returns the http.ResponseWriter for the current request scope
+func (b *BaseContext) ResponseWriter() http.ResponseWriter { return b.baseRw }
+
+// used internally to get a reference to the base context from the Context interface
+func (b *BaseContext) baseContext() *BaseContext { return b }

@@ -99,16 +99,10 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // Initialized a Context instance for use.
 func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) error {
-
-	// Initialize request if context has request capability
-	if impl, ok := ictx.(HasRequest); ok {
-		impl.setRequest(r)
-	}
-
-	// Initialize response writer if context has response writer capability
-	if impl, ok := ictx.(HasResponseWriter); ok {
-		impl.setResponseWriter(w)
-	}
+	// set Request and ResponseWriter for this context
+	bctx := ictx.baseContext()
+	bctx.baseRw = w
+	bctx.baseReq = r
 
 	// Initialize views when context has view capability
 	if impl, ok := ictx.(HasViews); ok {
@@ -127,28 +121,6 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		}
 
 		impl.setDB(db)
-	}
-
-	// Initialize token when context has token capability
-	if impl, ok := ictx.(HasToken); ok {
-		t := Token{
-			conf: impl.CONFIG_Token(),
-			Header: TokenHeader{
-				Alg: "HS256",
-				Typ: "JWT",
-			},
-			Claims: TokenClaims{},
-		}
-
-		if authHeader := r.Header.Get("Authorization"); authHeader != "" {
-			if strings.HasPrefix(authHeader, "Bearer ") {
-				if err := t.Decode([]byte(authHeader[7:])); err != nil {
-					log.Println(err)
-				}
-			}
-		}
-
-		impl.setToken(t)
 	}
 
 	// Initialize session when context has session capability
@@ -196,11 +168,14 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 	httpResult{code: 500}.ServeHTTP(w, r)
 }
 
-// Run runs an HTTP server serving requests for a on
-// 0.0.0.0:8080
-func (a *Application) Run() error {
-	return http.ListenAndServe(":8080", middleware.DefaultLogger(a))
+// RunAt runs an HTTP server to handle requests to a
+func (a *Application) RunAt(addr string) error {
+	return http.ListenAndServe(addr, middleware.DefaultLogger(a))
 }
+
+// Run runs an HTTP server to handle requests to a
+// on the default ":8080"
+func (a *Application) Run() error { return a.RunAt(":8080") }
 
 var (
 	methodRx = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
@@ -250,15 +225,6 @@ func bootstrapTryContextInit(impl Context) error {
 		_, err := gsCache.dbFor(impl.CONFIG_DB())
 		if err != nil {
 			return BootstrapError{Cause: err, Phase: "init database"}
-		}
-	}
-
-	// Examine token config for validity
-	if impl, ok := impl.(HasToken); ok {
-		conf := impl.CONFIG_Token()
-
-		if len(conf.Secret) == 0 {
-			return BootstrapError{Cause: errors.New("empty secret"), Phase: "check token config"}
 		}
 	}
 

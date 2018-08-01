@@ -6,27 +6,29 @@ import (
 )
 
 var (
-	_ HasViews          = (*DefaultViews)(nil)
-	_ HasSession        = (*DefaultSession)(nil)
-	_ HasToken          = (*DefaultToken)(nil)
-	_ HasDB             = (*DefaultDB)(nil)
-	_ HasRequest        = (*DefaultRequestResponse)(nil)
-	_ HasResponseWriter = (*DefaultRequestResponse)(nil)
+	_ HasViews   = (*DefaultViews)(nil)
+	_ HasSession = (*DefaultSession)(nil)
+	_ HasDB      = (*DefaultDB)(nil)
 )
 
 // DefaultViews is a type that can be embedded into a Context type
 // to enable views with default configuration options
 type DefaultViews struct {
-	views ViewCache
+	views    ViewCache
+	viewData interface{}
 }
 
-func (d *DefaultViews) Views() ViewCache     { return d.views }
-func (d *DefaultViews) setViews(v ViewCache) { d.views = v }
 func (d *DefaultViews) CONFIG_Views() ViewConfig {
 	return ViewConfig{
 		Root: "views",
 	}
 }
+
+func (d *DefaultViews) Views() ViewCache     { return d.views }
+func (d *DefaultViews) setViews(v ViewCache) { d.views = v }
+
+func (d *DefaultViews) ViewData() interface{}        { return d.viewData }
+func (d *DefaultViews) SetViewData(data interface{}) { d.viewData = data }
 
 // DefaultDB is a type that can be embedded into a Context type
 // to enable a database connection with default configuration
@@ -35,8 +37,6 @@ type DefaultDB struct {
 	db DB
 }
 
-func (d *DefaultDB) DB() DB      { return d.db }
-func (d *DefaultDB) setDB(db DB) { d.db = db }
 func (d *DefaultDB) CONFIG_DB() DBConfig {
 	return DBConfig{
 		Driver: envOrDefault("DB_DRIVER", ""),
@@ -44,33 +44,8 @@ func (d *DefaultDB) CONFIG_DB() DBConfig {
 	}
 }
 
-// DefaultToken is a type that can be embedded into a Context type
-// to enable managed JWTs with default configuration options
-type DefaultToken struct {
-	tok Token
-}
-
-func (d *DefaultToken) Token() Token     { return d.tok }
-func (d *DefaultToken) setToken(t Token) { d.tok = t }
-func (d *DefaultToken) CONFIG_Token() TokenConfig {
-	return TokenConfig{
-		Secret: []byte(envOrDefault("TOKEN_SECRET", "")),
-	}
-}
-
-type DefaultRequestResponse struct {
-	req *http.Request
-	rw  http.ResponseWriter
-}
-
-func (d *DefaultRequestResponse) setRequest(r *http.Request)              { d.req = r }
-func (d *DefaultRequestResponse) setResponseWriter(w http.ResponseWriter) { d.rw = w }
-
-// Request returns the *http.Request associated with d
-func (d *DefaultRequestResponse) Request() *http.Request { return d.req }
-
-// ResponseWriter returns the http.ResponseWriter associated with d
-func (d *DefaultRequestResponse) ResponseWriter() http.ResponseWriter { return d.rw }
+func (d *DefaultDB) DB() DB      { return d.db }
+func (d *DefaultDB) setDB(db DB) { d.db = db }
 
 // DefaultSession is a type that can be embedded into a Context type
 // to enable user sessions
@@ -100,5 +75,6 @@ func envOrDefault(s, dflt string) string {
 	if got := os.Getenv(s); got != "" {
 		return got
 	}
+
 	return dflt
 }
