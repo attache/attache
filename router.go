@@ -24,9 +24,10 @@ type stack []reflect.Value
 type node struct {
 	prefix string
 
-	guard   stack
-	methods map[string]stack
-	mount   http.Handler
+	guard       stack
+	hasOwnGuard bool
+	methods     map[string]stack
+	mount       http.Handler
 
 	kids map[byte]*node
 }
@@ -138,23 +139,21 @@ func (n *node) sharedPrefix(path string) int {
 
 func (n *node) split(split int) {
 	start, end := n.prefix[:split], n.prefix[split:]
-
 	newn := &node{
-		prefix:  end,
-		guard:   n.guard,
-		methods: n.methods,
-		mount:   n.mount,
-		kids:    n.kids,
+		prefix:      end,
+		guard:       n.guard,
+		hasOwnGuard: n.hasOwnGuard,
+		methods:     n.methods,
+		mount:       n.mount,
+		kids:        n.kids,
 	}
 
-	*n = node{
-		prefix: start,
-		// retain our guard stack
-		guard:   newn.guard,
-		methods: map[string]stack{},
-		kids: map[byte]*node{
-			end[0]: newn,
-		},
+	n.prefix = start
+	n.kids = map[byte]*node{end[0]: newn}
+	n.methods = map[string]stack{}
+	if n.hasOwnGuard {
+		n.hasOwnGuard = false
+		n.guard = n.guard[:len(n.guard)-1]
 	}
 }
 
@@ -197,6 +196,7 @@ func (r *router) guard(path string, guards stack) error {
 	}
 
 	n.guard = append(n.guard, guards...)
+	n.hasOwnGuard = true
 	return nil
 }
 
