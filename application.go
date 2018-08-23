@@ -177,6 +177,11 @@ func (a *Application) RunAt(addr string) error {
 // on the default ":8080"
 func (a *Application) Run() error { return a.RunAt(":8080") }
 
+func (a *Application) RunWithServer(s *http.Server) error {
+	s.Handler = middleware.DefaultLogger(a)
+	return s.ListenAndServe()
+}
+
 var (
 	methodRx = regexp.MustCompile(`^(GET|PUT|POST|PATCH|DELETE|HEAD|OPTIONS|TRACE|ALL)_(.*)$`)
 )
@@ -461,9 +466,9 @@ func bootstrapRouter(a *Application, impl Context) error {
 	}
 
 	// Development: log the list of registered routes, etc.
-	fmt.Println(" ======== ")
+	fmt.Println("======== ROUTES ========")
 	dump(a.r.root, "", 0)
-	fmt.Println(" ======== ")
+	fmt.Println("========================")
 
 	return nil
 }

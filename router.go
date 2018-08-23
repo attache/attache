@@ -246,7 +246,7 @@ func canonicalize(p string, trailingSlash bool) string {
 }
 
 func dump(root *node, soFar string, deep int) {
-	const indent = "  "
+	const indent = "- "
 
 	joined := soFar
 	if root.prefix != "" {

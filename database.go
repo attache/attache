@@ -103,6 +103,12 @@ type DB interface {
 	// Any error encountered is returned
 	All(newFn func() Storeable) ([]Storeable, error)
 
+	// Where queries all objects in the database represented by
+	// the concrete type returned by newFn that match the
+	// given where clause.
+	// Any error encountered is returned
+	Where(newFn func() Storeable, where string) ([]Storeable, error)
+
 	// Find locates the object in the database represented by
 	// into's concrete type and by the key value(s) provided in args
 	Find(into Storeable, args ...interface{}) error
@@ -266,6 +272,38 @@ func (d db) All(newFn func() Storeable) ([]Storeable, error) {
 	return result, nil
 }
 
+func (d db) Where(newFn func() Storeable, where string) ([]Storeable, error) {
+	if len(where) == 0 {
+		return d.All(newFn)
+	}
+
+	storeable := newFn()
+	cols, _ := storeable.Select()
+	result := make([]Storeable, 0, 64)
+	query := selectQueryUnsafe(cols, storeable.Table(), where, 0)
+	rows, err := d.Query(query)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		into := newFn()
+		_, targs := into.Select()
+		if err := rows.Scan(targs...); err != nil {
+			return nil, err
+		}
+		result = append(result, into)
+	}
+
+	if len(result) == 0 {
+		return nil, sql.ErrNoRows
+	}
+
+	return result, nil
+}
+
 func (d db) Find(into Storeable, args ...interface{}) error {
 	cols, targets := into.Select()
 	query := selectQuery(cols, into.Table(), into.KeyColumns(), false, 1)
@@ -327,6 +365,30 @@ func selectQuery(cols []string, table string, searchFields []string, or bool, li
 			fmt.Fprintf(query, "%s=?", field)
 		}
 	}
+
+	if limit > 0 {
+		fmt.Fprintf(query, " LIMIT %d", limit)
+	}
+
+	query.WriteByte(';')
+	return query.String()
+}
+
+func selectQueryUnsafe(cols []string, table, where string, limit int) string {
+	query := new(strings.Builder)
+	query.WriteString("SELECT ")
+	for i, name := range cols {
+		if i != 0 {
+			query.WriteString(", ")
+		}
+
+		query.WriteString(name)
+	}
+
+	query.WriteString(" FROM ")
+	query.WriteString(table)
+	query.WriteString(" WHERE ")
+	query.WriteString(where)
 
 	if limit > 0 {
 		fmt.Fprintf(query, " LIMIT %d", limit)
