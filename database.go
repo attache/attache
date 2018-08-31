@@ -383,6 +383,9 @@ func (d db) Tx(block func(tx TX) error) error {
 	}
 
 	if err := block(tx{conn: sqlTx}); err != nil {
+		if rbErr := sqlTx.Rollback(); rbErr != nil {
+			log.Println(rbErr) // shouldn't happen
+		}
 		return err
 	}
 
