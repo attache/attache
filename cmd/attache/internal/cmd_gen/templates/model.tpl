@@ -2,9 +2,12 @@ package models
 
 import (
 	"database/sql"
+	"github.com/mccolljr/attache"
 )
 
 type {{.Name}} struct { {{range .Fields}}{{.StructField}} {{.Type}};{{end}} }
+
+func New{{.Name}}() attache.Storeable { return new({{.Name}}) }
 
 func (m *{{.Name}}) Table() string { return {{printf "%q" .Table}} }
 
