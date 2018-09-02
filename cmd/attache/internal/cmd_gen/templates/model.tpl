@@ -7,7 +7,7 @@ import (
 
 type {{.Name}} struct { {{range .Fields}}{{.StructField}} {{.Type}};{{end}} }
 
-func New{{.Name}}() attache.Storeable { return new({{.Name}}) }
+func New{{.Name}}() attache.Storable { return new({{.Name}}) }
 
 func (m *{{.Name}}) Table() string { return {{printf "%q" .Table}} }
 

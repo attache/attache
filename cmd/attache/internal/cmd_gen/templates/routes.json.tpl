@@ -12,7 +12,7 @@ import (
 
 func (c *{{.ContextType}}) GET_{{.Model.Name}}List() {
 	w := c.ResponseWriter()
-	all, err := c.DB().All(func() attache.Storeable{ return new(models.{{.Model.Name}}) })
+	all, err := c.DB().All(func() attache.Storable{ return new(models.{{.Model.Name}}) })
 	if err != nil && err != sql.ErrNoRows {
 		attache.ErrorFatal(err)
 	}

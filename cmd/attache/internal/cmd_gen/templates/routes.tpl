@@ -13,7 +13,7 @@ func (c *{{.ContextType}}) GET_{{.Model.Name}}New() {
 }
 
 func (c *{{.ContextType}}) GET_{{.Model.Name}}List() {
-	all, err := c.DB().All(func() attache.Storeable{ return new(models.{{.Model.Name}}) })
+	all, err := c.DB().All(func() attache.Storable{ return new(models.{{.Model.Name}}) })
 	if err != nil && err != sql.ErrNoRows {
 		attache.ErrorFatal(err)
 	}

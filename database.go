@@ -9,19 +9,19 @@ import (
 	"strings"
 )
 
-// Storeable is the interface implemented by any type that can be
+// Storable is the interface implemented by any type that can be
 // stored/retrieved via database/sql
-type Storeable interface {
+type Storable interface {
 	// Table returns the name of the table that represents
-	// the Storeable object in the database
+	// the Storable object in the database
 	Table() string
 
 	// Insert returns the columns to be inserted, and the values
-	// to be inserted in those columns for the Storeable object
+	// to be inserted in those columns for the Storable object
 	Insert() (columns []string, values []interface{})
 
 	// Update returns the columns to be updated, and the
-	// updated values for those columns for the Storeable object
+	// updated values for those columns for the Storable object
 	Update() (columns []string, values []interface{})
 
 	// Select returns the columns to be selected,
@@ -30,52 +30,52 @@ type Storeable interface {
 	Select() (columns []string, into []interface{})
 
 	// KeyColumns returns the columns composing the primary key
-	// for the Storeable object
+	// for the Storable object
 	KeyColumns() []string
 
 	// KeyValues returns the values representing the primary key
-	// values for the Storeable object
+	// values for the Storable object
 	KeyValues() []interface{}
 }
 
 type (
-	// BeforeInserter can be implemented by a Storeable type
+	// BeforeInserter can be implemented by a Storable type
 	// to provide a callback before insertion. If a non-nil error
 	// is returned, the insert operation is aborted
 	BeforeInserter interface{ BeforeInsert() error }
 
-	// AfterInserter can be implemented by a Storeable type
+	// AfterInserter can be implemented by a Storable type
 	// to provide a callback after insertion. The callback
 	// has access to the returned sql.Result
 	AfterInserter interface{ AfterInsert(sql.Result) }
 )
 
 type (
-	// BeforeUpdater can be implemented by a Storeable type
+	// BeforeUpdater can be implemented by a Storable type
 	// to provide a callback before an update. If a non-nil
 	// error is returned, the update operation is aborted
 	BeforeUpdater interface{ BeforeUpdate() (err error) }
 
-	// AfterUpdater can be implemented by a Storeable type
+	// AfterUpdater can be implemented by a Storable type
 	// to provide a callback after an update. The callback
 	// has access to the returned sql.Result
 	AfterUpdater interface{ AfterUpdate(sql.Result) }
 )
 
 type (
-	// BeforeDeleter can be implemented by a Storeable type
+	// BeforeDeleter can be implemented by a Storable type
 	// to provide a callback before a deletion. If a non-nil
 	// error is returned, the deletion is aborted
 	BeforeDeleter interface{ BeforeDelete() (err error) }
 
-	// AfterDeleter can be implemented by a Storeable type
+	// AfterDeleter can be implemented by a Storable type
 	// to provide a callback after a deletion. The callback
 	// has access to the returned sql.Result
 	AfterDeleter interface{ AfterDelete(sql.Result) }
 )
 
 var (
-	tStoreable = reflect.TypeOf((*Storeable)(nil)).Elem()
+	tStorable = reflect.TypeOf((*Storable)(nil)).Elem()
 )
 
 type Queryable interface {
@@ -90,40 +90,40 @@ type TX interface {
 
 	Queryable
 
-	// Insert inserts the Storeable object into the database.
+	// Insert inserts the Storable object into the database.
 	// Any error encountered is returned
-	Insert(s Storeable) error
+	Insert(s Storable) error
 
-	// Update updates the Storeable object in the database.
+	// Update updates the Storable object in the database.
 	// Any error encountered is returned
-	Update(s Storeable) error
+	Update(s Storable) error
 
-	// Delete removes the Storeable object from the database.
+	// Delete removes the Storable object from the database.
 	// Any error encountered is returned
-	Delete(s Storeable) error
+	Delete(s Storable) error
 
 	// All queries all objects in the database represented
 	// by the concrete type returned by newFn.
 	// Any error encountered is returned
-	All(newFn func() Storeable) ([]Storeable, error)
+	All(newFn func() Storable) ([]Storable, error)
 
 	// Where queries all objects in the database represented by
 	// the concrete type returned by newFn that match the
 	// given where clause.
 	// Any error encountered is returned
-	Where(newFn func() Storeable, where string) ([]Storeable, error)
+	Where(newFn func() Storable, where string) ([]Storable, error)
 
 	// Find locates the object in the database represented by
 	// into's concrete type and by the key value(s) provided in args
-	Find(into Storeable, args ...interface{}) error
+	Find(into Storable, args ...interface{}) error
 
 	// Find locates the object in the database represented by
 	// into's concrete type and by the given field-value combination
-	FindBy(into Storeable, field string, val interface{}) error
+	FindBy(into Storable, field string, val interface{}) error
 }
 
 // A DB provides methods for querying the database, executing sql
-// operations, and storing / deleting / querying Storeable objects
+// operations, and storing / deleting / querying Storable objects
 type DB interface {
 	TX
 	// Executes the block against a transaction
@@ -146,11 +146,11 @@ func (d db) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	return d.conn.Query(query, args...)
 }
 
-func (d db) Insert(s Storeable) error {
+func (d db) Insert(s Storable) error {
 	return doInsert(d, s)
 }
 
-func doInsert(d Queryable, s Storeable) error {
+func doInsert(d Queryable, s Storable) error {
 	if impl, ok := s.(BeforeInserter); ok {
 		if err := impl.BeforeInsert(); err != nil {
 			return err
@@ -190,11 +190,11 @@ func doInsert(d Queryable, s Storeable) error {
 	return nil
 }
 
-func (d db) Update(s Storeable) error {
+func (d db) Update(s Storable) error {
 	return doUpdate(d, s)
 }
 
-func doUpdate(d Queryable, s Storeable) error {
+func doUpdate(d Queryable, s Storable) error {
 	if impl, ok := s.(BeforeUpdater); ok {
 		if err := impl.BeforeUpdate(); err != nil {
 			return err
@@ -232,11 +232,11 @@ func doUpdate(d Queryable, s Storeable) error {
 	return nil
 }
 
-func (d db) Delete(s Storeable) error {
+func (d db) Delete(s Storable) error {
 	return doDelete(d, s)
 }
 
-func doDelete(d Queryable, s Storeable) error {
+func doDelete(d Queryable, s Storable) error {
 	if impl, ok := s.(BeforeDeleter); ok {
 		if err := impl.BeforeDelete(); err != nil {
 			return err
@@ -266,15 +266,15 @@ func doDelete(d Queryable, s Storeable) error {
 	return nil
 }
 
-func (d db) All(newFn func() Storeable) ([]Storeable, error) {
+func (d db) All(newFn func() Storable) ([]Storable, error) {
 	return doAll(d, newFn)
 }
 
-func doAll(d Queryable, newFn func() Storeable) ([]Storeable, error) {
-	storeable := newFn()
-	cols, _ := storeable.Select()
-	result := make([]Storeable, 0, 64)
-	query := selectQuery(cols, storeable.Table(), nil, false, 0)
+func doAll(d Queryable, newFn func() Storable) ([]Storable, error) {
+	storable := newFn()
+	cols, _ := storable.Select()
+	result := make([]Storable, 0, 64)
+	query := selectQuery(cols, storable.Table(), nil, false, 0)
 	rows, err := d.Query(query)
 	if err != nil {
 		return nil, err
@@ -298,19 +298,19 @@ func doAll(d Queryable, newFn func() Storeable) ([]Storeable, error) {
 	return result, nil
 }
 
-func (d db) Where(newFn func() Storeable, where string) ([]Storeable, error) {
+func (d db) Where(newFn func() Storable, where string) ([]Storable, error) {
 	return doWhere(d, newFn, where)
 }
 
-func doWhere(d Queryable, newFn func() Storeable, where string) ([]Storeable, error) {
+func doWhere(d Queryable, newFn func() Storable, where string) ([]Storable, error) {
 	if len(where) == 0 {
 		return doAll(d, newFn)
 	}
 
-	storeable := newFn()
-	cols, _ := storeable.Select()
-	result := make([]Storeable, 0, 64)
-	query := selectQueryUnsafe(cols, storeable.Table(), where, 0)
+	storable := newFn()
+	cols, _ := storable.Select()
+	result := make([]Storable, 0, 64)
+	query := selectQueryUnsafe(cols, storable.Table(), where, 0)
 	rows, err := d.Query(query)
 	if err != nil {
 		return nil, err
@@ -334,11 +334,11 @@ func doWhere(d Queryable, newFn func() Storeable, where string) ([]Storeable, er
 	return result, nil
 }
 
-func (d db) Find(into Storeable, args ...interface{}) error {
+func (d db) Find(into Storable, args ...interface{}) error {
 	return doFind(d, into, args)
 }
 
-func doFind(d Queryable, into Storeable, args []interface{}) error {
+func doFind(d Queryable, into Storable, args []interface{}) error {
 	cols, targets := into.Select()
 	query := selectQuery(cols, into.Table(), into.KeyColumns(), false, 1)
 	rows, err := d.Query(query, args...)
@@ -355,11 +355,11 @@ func doFind(d Queryable, into Storeable, args []interface{}) error {
 	return rows.Scan(targets...)
 }
 
-func (d db) FindBy(into Storeable, field string, val interface{}) error {
+func (d db) FindBy(into Storable, field string, val interface{}) error {
 	return doFindBy(d, into, field, val)
 }
 
-func doFindBy(d Queryable, into Storeable, field string, val interface{}) error {
+func doFindBy(d Queryable, into Storable, field string, val interface{}) error {
 	cols, targets := into.Select()
 	query := selectQuery(cols, into.Table(), []string{field}, false, 1)
 	rows, err := d.Query(query, val)
@@ -408,16 +408,16 @@ func (d tx) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	return d.conn.Query(query, args...)
 }
 
-func (d tx) Insert(s Storeable) error { return doInsert(d, s) }
-func (d tx) Update(s Storeable) error { return doUpdate(d, s) }
-func (d tx) Delete(s Storeable) error { return doDelete(d, s) }
+func (d tx) Insert(s Storable) error { return doInsert(d, s) }
+func (d tx) Update(s Storable) error { return doUpdate(d, s) }
+func (d tx) Delete(s Storable) error { return doDelete(d, s) }
 
-func (d tx) All(newFn func() Storeable) ([]Storeable, error) { return doAll(d, newFn) }
-func (d tx) Where(newFn func() Storeable, where string) ([]Storeable, error) {
+func (d tx) All(newFn func() Storable) ([]Storable, error) { return doAll(d, newFn) }
+func (d tx) Where(newFn func() Storable, where string) ([]Storable, error) {
 	return doWhere(d, newFn, where)
 }
-func (d tx) Find(into Storeable, args ...interface{}) error { return doFind(d, into, args) }
-func (d tx) FindBy(into Storeable, field string, val interface{}) error {
+func (d tx) Find(into Storable, args ...interface{}) error { return doFind(d, into, args) }
+func (d tx) FindBy(into Storable, field string, val interface{}) error {
 	return doFindBy(d, into, field, val)
 }
 
