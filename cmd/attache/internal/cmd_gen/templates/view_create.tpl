@@ -1,9 +1,11 @@
+[[- $scopePath := .ScopePath -]]
+[[- with .Model -]]
 {{define "title"}}New [[.Name]]{{end}}
 {{define "body"}}
 <div class="container">
 	<div class="card">
 		<div class="card-body">
-			<form name="new_[[.Table]]" method="post" action="/[[.Table]]/new">
+			<form name="new_[[.Table]]" method="post" action="[[$scopePath]]/[[.Table]]/new">
 				<fieldset>
 					<legend>New [[.Name]]</legend>
 					[[range .Fields]]
@@ -21,3 +23,4 @@
 	</div>
 </div>
 {{end}}
+[[end]]

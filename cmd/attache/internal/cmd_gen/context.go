@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"text/template"
+
+	"github.com/iancoleman/strcase"
 
 	"github.com/mccolljr/attache/cmd/attache/shared"
 	"golang.org/x/tools/imports"
@@ -26,6 +29,8 @@ type Context struct {
 	DoViews  bool
 	DoRoutes bool
 	DoModel  bool
+
+	ScopeCamel, ScopeSnake, ScopePath string
 
 	Replace bool
 
@@ -74,6 +79,7 @@ func (c *Context) init(args []string) error {
 	c.flags.BoolVar(&c.JSONRoutes, "json", false, "create JSON endpoints")
 	name := c.flags.String("n", "", "name of the resource")
 	table := c.flags.String("t", "", "name of table")
+	scope := c.flags.String("s", "", "scope to generate routes and views under")
 	defs := &fieldDefs{}
 	c.flags.Var(defs, "f", "-f NAME:TYPE:FLAGs [...]")
 
@@ -83,6 +89,14 @@ func (c *Context) init(args []string) error {
 
 	if c.ContextType == "" {
 		return errors.New("ctx cannot be \"\"")
+	}
+
+	if *scope != "" {
+		c.ScopeCamel = strcase.ToCamel(*scope)
+		c.ScopeSnake = strcase.ToSnake(*scope)
+		c.ScopePath = path.Clean("/" + strings.Replace(c.ScopeSnake, "_", "/", -1))
+		fmt.Printf("=== SCOPE ===\nCamel: %s\nSnake: %s\nPath: %s\n",
+			c.ScopeCamel, c.ScopeSnake, c.ScopePath)
 	}
 
 	if *name == "" {
@@ -126,7 +140,47 @@ func (c *Context) init(args []string) error {
 	c.Model = buildModel(*name, *table, *defs)
 
 	if c.DoViews {
-		c.Views = viewsFor(c.Model)
+		createForm := template.Must(template.New("").Delims("[[", "]]").
+			Parse(MustAssetString("templates/view_create.tpl")))
+		updateForm := template.Must(template.New("").Delims("[[", "]]").
+			Parse(MustAssetString("templates/view_update.tpl")))
+		listView := template.Must(template.New("").Delims("[[", "]]").
+			Parse(MustAssetString("templates/view_list.tpl")))
+
+		var (
+			create = &strings.Builder{}
+			update = &strings.Builder{}
+			list   = &strings.Builder{}
+		)
+
+		if err := createForm.Execute(create, c); err != nil {
+			return err
+		}
+
+		if err := updateForm.Execute(update, c); err != nil {
+			return err
+		}
+
+		if err := listView.Execute(list, c); err != nil {
+			return err
+		}
+
+		c.Views = []View{
+			View{
+				File: filepath.Join("views", c.ScopeSnake, c.Model.Table, "create.tpl"),
+				Body: create.String(),
+			},
+
+			View{
+				File: filepath.Join("views", c.ScopeSnake, c.Model.Table, "update.tpl"),
+				Body: update.String(),
+			},
+
+			View{
+				File: filepath.Join("views", c.ScopeSnake, c.Model.Table, "list.tpl"),
+				Body: list.String(),
+			},
+		}
 	}
 
 	return nil
@@ -164,7 +218,13 @@ func (ctx *Context) do() error {
 		}
 	}
 
-	routeFile := ctx.Model.Table + "_routes.go"
+	var routeFile string
+	if ctx.ScopeSnake != "" {
+		routeFile = fmt.Sprintf("%s_%s_routes.go", ctx.ScopeSnake, ctx.Model.Table)
+	} else {
+		routeFile = fmt.Sprintf("%s_routes.go", ctx.Model.Table)
+	}
+
 	if ctx.DoRoutes {
 		// prevent overwrite of route file
 		if _, err := os.Stat(routeFile); err == nil {

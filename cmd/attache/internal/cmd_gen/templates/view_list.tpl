@@ -1,3 +1,5 @@
+[[- $scopePath := .ScopePath -]]
+[[- with .Model -]]
 {{define "title"}}[[.Name]] List{{end}}
 {{define "body"}}
 {{with .ViewData}}
@@ -22,7 +24,7 @@
 					[[- range .Fields]]
 						[[- if not .NoSelect]]
 						<td>
-							[[- if .Key -]]<a href="/[[$table]]?id={{.[[.StructField]]}}">[[- end -]]
+							[[- if .Key -]]<a href="[[$scopePath]]/[[$table]]?id={{.[[.StructField]]}}">[[- end -]]
 							{{.[[.StructField]]}}
 							[[- if .Key -]]</a>[[- end -]]
 						</td>
@@ -37,3 +39,4 @@
 </div>
 {{end}}
 {{end}}
+[[end]]

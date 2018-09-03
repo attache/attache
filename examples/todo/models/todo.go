@@ -2,19 +2,23 @@ package models
 
 import (
 	"database/sql"
+
+	"github.com/mccolljr/attache"
 )
 
 type Todo struct {
 	ID    int64
 	Title string
-	Info  string
+	Text  string
 }
+
+func NewTodo() attache.Storable { return new(Todo) }
 
 func (m *Todo) Table() string { return "todo" }
 
 func (m *Todo) Insert() (columns []string, values []interface{}) {
-	columns = []string{"title", "info"}
-	values = []interface{}{m.Title, m.Info}
+	columns = []string{"title", "text"}
+	values = []interface{}{m.Title, m.Text}
 	return
 }
 
@@ -27,14 +31,14 @@ func (m *Todo) AfterInsert(result sql.Result) {
 }
 
 func (m *Todo) Update() (columns []string, values []interface{}) {
-	columns = []string{"title", "info"}
-	values = []interface{}{m.Title, m.Info}
+	columns = []string{"title", "text"}
+	values = []interface{}{m.Title, m.Text}
 	return
 }
 
 func (m *Todo) Select() (columns []string, into []interface{}) {
-	columns = []string{"id", "title", "info"}
-	into = []interface{}{&m.ID, &m.Title, &m.Info}
+	columns = []string{"id", "title", "text"}
+	into = []interface{}{&m.ID, &m.Title, &m.Text}
 	return
 }
 

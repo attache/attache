@@ -1,10 +1,12 @@
+[[- $scopePath := .ScopePath -]]
+[[- with .Model -]]
 {{define "title"}}Edit [[.Name]]{{end}}
 {{define "body"}}
 {{with .ViewData}}
 <div class="container">
 	<div class="card">
 		<div class="card-body">
-			<form name="edit_[[.Table]]" method="post" action="/[[.Table]]?id={{.[[.KeyStructField]]}}">
+			<form name="edit_[[.Table]]" method="post" action="[[$scopePath]]/[[.Table]]?id={{.[[.KeyStructField]]}}">
 				<fieldset>
 					<legend>Edit [[.Name]]</legend>
 					[[range .Fields]]
@@ -24,3 +26,4 @@
 </div>
 {{end}}
 {{end}}
+[[end]]
