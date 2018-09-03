@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/Masterminds/sprig"
+
 	"html/template"
 )
 
@@ -96,7 +98,7 @@ func (v viewCache) load(path, prefix string, layouts []string) error {
 			continue
 		}
 
-		tpl := template.New("")
+		tpl := template.New("").Funcs(sprig.FuncMap())
 		for _, l := range layouts {
 			if _, err := tpl.Parse(l); err != nil {
 				return err
