@@ -18,6 +18,7 @@
 								class="form-control"/>
 					</div>
 					[[end]]
+					<a href="[[$scopePath]]/[[.Table]]/list" class="btn btn-default">Back</a>
 					<input type="submit" value="Update" class="btn btn-primary"/>
 				</fieldset>
 			</form>

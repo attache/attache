@@ -47,7 +47,7 @@ func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Model.Name}}() {
 	{{ end }}
 }
 
-func (c *{{.ContextType}}) POST_{{.ScopeSnake}}{{.Model.Name}}New() {
+func (c *{{.ContextType}}) POST_{{.ScopeCamel}}{{.Model.Name}}New() {
 	r := c.Request()
 	if err := r.ParseForm(); err != nil {
 		attache.ErrorFatal(err)

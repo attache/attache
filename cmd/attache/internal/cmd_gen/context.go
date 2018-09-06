@@ -95,8 +95,6 @@ func (c *Context) init(args []string) error {
 		c.ScopeCamel = strcase.ToCamel(*scope)
 		c.ScopeSnake = strcase.ToSnake(*scope)
 		c.ScopePath = path.Clean("/" + strings.Replace(c.ScopeSnake, "_", "/", -1))
-		fmt.Printf("=== SCOPE ===\nCamel: %s\nSnake: %s\nPath: %s\n",
-			c.ScopeCamel, c.ScopeSnake, c.ScopePath)
 	}
 
 	if *name == "" {
@@ -236,7 +234,10 @@ func (ctx *Context) do() error {
 		}
 	}
 
-	var buf bytes.Buffer
+	var (
+		buf     bytes.Buffer
+		created []string
+	)
 
 	if ctx.DoModel {
 		buf.Reset()
@@ -264,6 +265,8 @@ func (ctx *Context) do() error {
 		if _, err = file.Write(formattedModel); err != nil {
 			return err
 		}
+
+		created = append(created, modelFile)
 	}
 
 	// generate route file
@@ -302,6 +305,8 @@ func (ctx *Context) do() error {
 		if _, err = file.Write(formattedRoute); err != nil {
 			return err
 		}
+
+		created = append(created, routeFile)
 	}
 
 	if ctx.DoViews && ctx.Views != nil {
@@ -319,8 +324,12 @@ func (ctx *Context) do() error {
 			if _, err = file.WriteString(v.Body); err != nil {
 				return err
 			}
+
+			created = append(created, v.File)
 		}
 	}
+
+	fmt.Printf("done. files created:\n\t%s\n", strings.Join(created, "\n\t"))
 
 	return nil
 }

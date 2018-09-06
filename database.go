@@ -1,12 +1,13 @@
 package attache
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
 	"log"
 	"reflect"
 	"strings"
+
+	"github.com/gocraft/dbr"
 )
 
 // Storable is the interface implemented by any type that can be
@@ -131,7 +132,7 @@ type DB interface {
 }
 
 type db struct {
-	conn *sql.DB
+	conn *dbr.Connection
 }
 
 func (d db) private() {}
@@ -147,10 +148,10 @@ func (d db) Query(query string, args ...interface{}) (*sql.Rows, error) {
 }
 
 func (d db) Insert(s Storable) error {
-	return doInsert(d, s)
+	return doInsert(d.conn.NewSession(nil), s)
 }
 
-func doInsert(d Queryable, s Storable) error {
+func doInsert(d dbr.SessionRunner, s Storable) error {
 	if impl, ok := s.(BeforeInserter); ok {
 		if err := impl.BeforeInsert(); err != nil {
 			return err
@@ -158,27 +159,7 @@ func doInsert(d Queryable, s Storable) error {
 	}
 
 	cols, vals := s.Insert()
-
-	query := new(bytes.Buffer)
-	fmt.Fprintf(query, "INSERT INTO %s (", s.Table())
-	for i, name := range cols {
-		if i != 0 {
-			query.WriteString(", ")
-		}
-
-		fmt.Fprintf(query, "%s", name)
-	}
-
-	query.WriteString(") VALUES (")
-	for i := range vals {
-		if i != 0 {
-			query.WriteString(", ")
-		}
-		query.WriteString("?")
-	}
-	query.WriteString(")")
-
-	result, err := d.Exec(query.String(), vals...)
+	result, err := d.InsertInto(s.Table()).Columns(cols...).Values(vals...).Exec()
 	if err != nil {
 		return err
 	}
@@ -191,10 +172,10 @@ func doInsert(d Queryable, s Storable) error {
 }
 
 func (d db) Update(s Storable) error {
-	return doUpdate(d, s)
+	return doUpdate(d.conn.NewSession(nil), s)
 }
 
-func doUpdate(d Queryable, s Storable) error {
+func doUpdate(d dbr.SessionRunner, s Storable) error {
 	if impl, ok := s.(BeforeUpdater); ok {
 		if err := impl.BeforeUpdate(); err != nil {
 			return err
@@ -202,25 +183,23 @@ func doUpdate(d Queryable, s Storable) error {
 	}
 
 	cols, vals := s.Update()
-	query := new(bytes.Buffer)
-	fmt.Fprintf(query, "UPDATE %s SET ", s.Table())
-	for i, name := range cols {
-		if i != 0 {
-			query.WriteString(", ")
-		}
-
-		fmt.Fprintf(query, "%s=?", name)
-	}
-	query.WriteString(" WHERE ")
-	for i, name := range s.KeyColumns() {
-		if i != 0 {
-			query.WriteString(" AND ")
-		}
-
-		fmt.Fprintf(query, "%s=?", name)
+	query := d.Update(s.Table())
+	for i := range cols {
+		query.Set(cols[i], vals[i])
 	}
 
-	result, err := d.Exec(query.String(), append(vals, s.KeyValues()...)...)
+	var (
+		keyCols = s.KeyColumns()
+		keyVals = s.KeyValues()
+		conds   []dbr.Builder
+	)
+	for i := range keyCols {
+		conds = append(conds, dbr.Eq(keyCols[i], keyVals[i]))
+	}
+
+	query.Where(dbr.And(conds...))
+
+	result, err := query.Exec()
 	if err != nil {
 		return err
 	}
@@ -233,28 +212,29 @@ func doUpdate(d Queryable, s Storable) error {
 }
 
 func (d db) Delete(s Storable) error {
-	return doDelete(d, s)
+	return doDelete(d.conn.NewSession(nil), s)
 }
 
-func doDelete(d Queryable, s Storable) error {
+func doDelete(d dbr.SessionRunner, s Storable) error {
 	if impl, ok := s.(BeforeDeleter); ok {
 		if err := impl.BeforeDelete(); err != nil {
 			return err
 		}
 	}
 
-	query := new(bytes.Buffer)
-	fmt.Fprintf(query, "DELETE FROM %s WHERE ", s.Table())
-
-	for i, name := range s.KeyColumns() {
-		if i != 0 {
-			query.WriteString(" AND ")
-		}
-
-		fmt.Fprintf(query, "%s=?", name)
+	var (
+		query   = d.DeleteFrom(s.Table())
+		keyCols = s.KeyColumns()
+		keyVals = s.KeyValues()
+		conds   []dbr.Builder
+	)
+	for i := range keyCols {
+		conds = append(conds, dbr.Eq(keyCols[i], keyVals[i]))
 	}
 
-	result, err := d.Exec(query.String(), s.KeyValues()...)
+	query.Where(dbr.And(conds...))
+
+	result, err := query.Exec()
 	if err != nil {
 		return err
 	}
@@ -267,18 +247,15 @@ func doDelete(d Queryable, s Storable) error {
 }
 
 func (d db) All(newFn func() Storable) ([]Storable, error) {
-	return doAll(d, newFn)
+	return doAll(d.conn.NewSession(nil), newFn)
 }
 
-func doAll(d Queryable, newFn func() Storable) ([]Storable, error) {
+func doAll(d dbr.SessionRunner, newFn func() Storable) ([]Storable, error) {
 	storable := newFn()
 	cols, _ := storable.Select()
 	result := make([]Storable, 0, 64)
-	query := selectQuery(cols, storable.Table(), nil, false, 0)
-	rows, err := d.Query(query)
-	if err != nil {
-		return nil, err
-	}
+
+	d.Select(cols...).From(storable.Table())
 
 	defer rows.Close()
 

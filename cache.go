@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"path/filepath"
 	"sync"
+
+	"github.com/gocraft/dbr"
 )
 
 type vcCache struct {
@@ -96,6 +98,7 @@ func (c *cache) dbFor(conf DBConfig) (DB, error) {
 		return db, nil
 	}
 
+	dbr.Open(conf.Driver, conf.DSN)
 	conn, err := sql.Open(conf.Driver, conf.DSN)
 	if err != nil {
 		return nil, err
