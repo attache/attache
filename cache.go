@@ -1,7 +1,6 @@
 package attache
 
 import (
-	"database/sql"
 	"path/filepath"
 	"sync"
 
@@ -40,28 +39,28 @@ func (v *vcCache) put(key ViewConfig, vc viewCache) {
 
 type dbCache struct {
 	sync.RWMutex
-	have map[DBConfig]db
+	have map[DBConfig]*dbr.Connection
 }
 
 func (c *dbCache) lazy() {
 	if c.have == nil {
-		c.have = make(map[DBConfig]db, 1)
+		c.have = make(map[DBConfig]*dbr.Connection, 1)
 	}
 }
 
-func (c *dbCache) lookupOk(key DBConfig) (db, bool) {
+func (c *dbCache) lookupOk(key DBConfig) (*dbr.Connection, bool) {
 	c.RLock()
 	defer c.RUnlock()
 
 	if c.have == nil {
-		return db{}, false
+		return nil, false
 	}
 
 	got, ok := c.have[key]
 	return got, ok
 }
 
-func (c *dbCache) put(key DBConfig, toPut db) {
+func (c *dbCache) put(key DBConfig, toPut *dbr.Connection) {
 	c.Lock()
 	defer c.Unlock()
 	c.lazy()
@@ -90,25 +89,23 @@ func (c *cache) viewsFor(conf ViewConfig) (ViewCache, error) {
 }
 
 func (c *cache) dbFor(conf DBConfig) (DB, error) {
-	if db, ok := c.dbCache.lookupOk(conf); ok {
-		if err := db.conn.Ping(); err != nil {
-			return nil, err
+	if conn, ok := c.dbCache.lookupOk(conf); ok {
+		if err := conn.Ping(); err != nil {
+			return DB{}, err
 		}
 
-		return db, nil
+		return DB{conn.NewSession(nil)}, nil
 	}
 
-	dbr.Open(conf.Driver, conf.DSN)
-	conn, err := sql.Open(conf.Driver, conf.DSN)
+	conn, err := dbr.Open(conf.Driver, conf.DSN, nil)
 	if err != nil {
-		return nil, err
+		return DB{}, err
 	}
 
 	if err = conn.Ping(); err != nil {
-		return nil, err
+		return DB{}, err
 	}
 
-	got := db{conn: conn}
-	c.dbCache.put(conf, got)
-	return got, nil
+	c.dbCache.put(conf, conn)
+	return DB{conn.NewSession(nil)}, nil
 }

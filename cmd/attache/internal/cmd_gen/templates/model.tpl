@@ -5,7 +5,7 @@ import (
 	"github.com/mccolljr/attache"
 )
 
-type {{.Name}} struct { {{range .Fields}}{{.StructField}} {{.Type}};{{end}} }
+type {{.Name}} struct { {{range .Fields}}{{.StructField}} {{.Type}} `db:"{{.Column}}"`;{{end}} }
 
 func New{{.Name}}() attache.Storable { return new({{.Name}}) }
 
