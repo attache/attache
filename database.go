@@ -168,6 +168,12 @@ func (db DB) FindAll(typ Record) ([]Record, error) {
 	return result, err
 }
 
+func (db DB) FindAllBy(typ Record, where string, args ...interface{}) ([]Record, error) {
+	result := []Record{}
+	_, err := db.s.Select("*").From(typ.Table()).Where(where, args...).Load(dbr.InterfaceLoader(&result, typ))
+	return result, err
+}
+
 func (db DB) FindByFilter(typ Record, where string) ([]Record, error) {
 	result := []Record{}
 	cond, err := filter.Parse(where)
