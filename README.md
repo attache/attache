@@ -4,7 +4,7 @@ _Attache is in alpha release, and as such should not yet be considered for produ
 
 #### If you'd like to help, here are the high-level TODOs:
 1. Documentation of types and API
-	- Storable API
+	- Record API
 	- Capabilities API
 	- Context Bootstrapping API
 	- Naming conventions
