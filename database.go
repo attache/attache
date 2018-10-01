@@ -3,11 +3,12 @@ package attache
 import (
 	"database/sql"
 	"fmt"
-	"reflect"
 
 	"github.com/gocraft/dbr"
 	"github.com/mccolljr/attache/filter"
 )
+
+var ErrRecordNotFound = dbr.ErrNotFound
 
 // Record is the interface implemented by any type that can be
 // stored/retrieved via database/sql
@@ -63,125 +64,57 @@ type (
 	AfterDeleter interface{ AfterDelete(sql.Result) }
 )
 
-var tRecord = reflect.TypeOf((*Record)(nil)).Elem()
+// DBRunner is the set of functions provided by both DB and TX
+type DBRunner interface {
+	// Session provides access to the underlying dbr.SessionRunner
+	Session() dbr.SessionRunner
 
-type DB struct {
-	s *dbr.Session
+	// Insert inserts the Record into the database
+	Insert(Record) error
+
+	// Update updates the Record in the database
+	Update(Record) error
+
+	// Delete deletes the Record from the database
+	Delete(Record) error
+
+	// All reutrns all Records of the specified type
+	All(typ Record) ([]Record, error)
+
+	// Get fetches a single record whose key values match those provided into the target Record
+	Get(into Record, keyVals ...interface{}) error
+
+	// GetBy fetches a single record matching the where condition into the target Record
+	GetBy(into Record, where string, args ...interface{}) error
+
+	// Where finds all records of the specified type matching the where query
+	Where(typ Record, where string, args ...interface{}) ([]Record, error)
+
+	// WhereFilter finds all records of the specified type matching the filterString
+	WhereFilter(typ Record, filterString string) ([]Record, error)
 }
 
-func (db DB) Insert(r Record) error {
-	if impl, ok := r.(BeforeInserter); ok {
-		if err := impl.BeforeInsert(); err != nil {
-			return err
-		}
-	}
+var (
+	_ DBRunner = DB{}
+	_ DBRunner = TX{}
+)
 
-	ic, iv := r.Insert()
-	result, err := db.s.InsertInto(r.Table()).Columns(ic...).Values(iv...).Exec()
-	if err != nil {
-		return err
-	}
+type DB struct{ s *dbr.Session }
 
-	if impl, ok := r.(AfterInserter); ok {
-		impl.AfterInsert(result)
-	}
-
-	return nil
+func (db DB) Session() dbr.SessionRunner                    { return db.s }
+func (db DB) Insert(r Record) error                         { return doInsert(db.s, r) }
+func (db DB) Update(r Record) error                         { return doUpdate(db.s, r) }
+func (db DB) Delete(r Record) error                         { return doDelete(db.s, r) }
+func (db DB) All(typ Record) ([]Record, error)              { return doAll(db.s, typ) }
+func (db DB) Get(into Record, keyVals ...interface{}) error { return doGet(db.s, into, keyVals) }
+func (db DB) GetBy(into Record, where string, args ...interface{}) error {
+	return doGetBy(db.s, into, where, args)
 }
-
-func (db DB) Update(r Record) error {
-	if impl, ok := r.(BeforeUpdater); ok {
-		if err := impl.BeforeUpdate(); err != nil {
-			return err
-		}
-	}
-
-	uc, uv := r.Update()
-	query := db.s.Update(r.Table())
-	for i := 0; i < len(uc); i++ {
-		query.Set(uc[i], uv[i])
-	}
-
-	kc, kv := r.Key()
-	for i := 0; i < len(kc); i++ {
-		query.Where(dbr.Eq(kc[i], kv[i]))
-	}
-
-	result, err := query.Exec()
-	if err != nil {
-		return err
-	}
-
-	if impl, ok := r.(AfterUpdater); ok {
-		impl.AfterUpdate(result)
-	}
-
-	return nil
+func (db DB) Where(typ Record, where string, args ...interface{}) ([]Record, error) {
+	return doWhere(db.s, typ, where, args)
 }
-
-func (db DB) Delete(r Record) error {
-	if impl, ok := r.(BeforeDeleter); ok {
-		if err := impl.BeforeDelete(); err != nil {
-			return err
-		}
-	}
-
-	kc, kv := r.Key()
-	query := db.s.DeleteFrom(r.Table())
-	for i := 0; i < len(kc); i++ {
-		query.Where(dbr.Eq(kc[i], kv[i]))
-	}
-
-	result, err := query.Exec()
-	if err != nil {
-		return err
-	}
-
-	if impl, ok := r.(AfterDeleter); ok {
-		impl.AfterDelete(result)
-	}
-
-	return nil
-}
-
-func (db DB) FindByKey(into Record, keyVals ...interface{}) error {
-	kc, _ := into.Key()
-	if got, want := len(keyVals), len(kc); got != want {
-		return fmt.Errorf("expected %d values in key, got %d", want, got)
-	}
-
-	query := db.s.Select("*").From(into.Table())
-	for i := 0; i < len(kc); i++ {
-		query.Where(dbr.Eq(kc[i], keyVals[i]))
-	}
-
-	return query.LoadOne(into)
-}
-
-func (db DB) FindBy(into Record, where string, args ...interface{}) error {
-	return db.s.Select("*").From(into.Table()).Where(where, args...).LoadOne(into)
-}
-
-func (db DB) FindAll(typ Record) ([]Record, error) {
-	result := []Record{}
-	_, err := db.s.Select("*").From(typ.Table()).Load(dbr.InterfaceLoader(&result, typ))
-	return result, err
-}
-
-func (db DB) FindAllBy(typ Record, where string, args ...interface{}) ([]Record, error) {
-	result := []Record{}
-	_, err := db.s.Select("*").From(typ.Table()).Where(where, args...).Load(dbr.InterfaceLoader(&result, typ))
-	return result, err
-}
-
-func (db DB) FindByFilter(typ Record, where string) ([]Record, error) {
-	result := []Record{}
-	cond, err := filter.Parse(where)
-	if err != nil {
-		return nil, err
-	}
-	_, err = db.s.Select("*").From(typ.Table()).Where(cond).Load(dbr.InterfaceLoader(&result, typ))
-	return result, err
+func (db DB) WhereFilter(typ Record, where string) ([]Record, error) {
+	return doWhereFilter(db.s, typ, where)
 }
 
 func (db DB) Tx(block func(tx TX) error) error {
@@ -197,11 +130,45 @@ func (db DB) Tx(block func(tx TX) error) error {
 	return tx.Commit()
 }
 
-type TX struct {
-	t *dbr.Tx
+type TX struct{ s *dbr.Tx }
+
+func (db TX) Session() dbr.SessionRunner                    { return db.s }
+func (db TX) Insert(r Record) error                         { return doInsert(db.s, r) }
+func (db TX) Update(r Record) error                         { return doUpdate(db.s, r) }
+func (db TX) Delete(r Record) error                         { return doDelete(db.s, r) }
+func (db TX) All(typ Record) ([]Record, error)              { return doAll(db.s, typ) }
+func (db TX) Get(into Record, keyVals ...interface{}) error { return doGet(db.s, into, keyVals) }
+func (db TX) GetBy(into Record, where string, args ...interface{}) error {
+	return doGetBy(db.s, into, where, args)
+}
+func (db TX) Where(typ Record, where string, args ...interface{}) ([]Record, error) {
+	return doWhere(db.s, typ, where, args)
+}
+func (db TX) WhereFilter(typ Record, where string) ([]Record, error) {
+	return doWhereFilter(db.s, typ, where)
 }
 
-func (tx TX) Insert(r Record) error {
+// general implementations
+
+type (
+	dbrInserter interface {
+		InsertInto(string) *dbr.InsertStmt
+	}
+
+	dbrUpdater interface {
+		Update(string) *dbr.UpdateStmt
+	}
+
+	dbrDeleter interface {
+		DeleteFrom(string) *dbr.DeleteStmt
+	}
+
+	dbrSelecter interface {
+		Select(...string) *dbr.SelectStmt
+	}
+)
+
+func doInsert(s dbrInserter, r Record) error {
 	if impl, ok := r.(BeforeInserter); ok {
 		if err := impl.BeforeInsert(); err != nil {
 			return err
@@ -209,7 +176,7 @@ func (tx TX) Insert(r Record) error {
 	}
 
 	ic, iv := r.Insert()
-	result, err := tx.t.InsertInto(r.Table()).Columns(ic...).Values(iv...).Exec()
+	result, err := s.InsertInto(r.Table()).Columns(ic...).Values(iv...).Exec()
 	if err != nil {
 		return err
 	}
@@ -221,7 +188,7 @@ func (tx TX) Insert(r Record) error {
 	return nil
 }
 
-func (tx TX) Update(r Record) error {
+func doUpdate(s dbrUpdater, r Record) error {
 	if impl, ok := r.(BeforeUpdater); ok {
 		if err := impl.BeforeUpdate(); err != nil {
 			return err
@@ -229,7 +196,7 @@ func (tx TX) Update(r Record) error {
 	}
 
 	uc, uv := r.Update()
-	query := tx.t.Update(r.Table())
+	query := s.Update(r.Table())
 	for i := 0; i < len(uc); i++ {
 		query.Set(uc[i], uv[i])
 	}
@@ -251,7 +218,7 @@ func (tx TX) Update(r Record) error {
 	return nil
 }
 
-func (tx TX) Delete(r Record) error {
+func doDelete(s dbrDeleter, r Record) error {
 	if impl, ok := r.(BeforeDeleter); ok {
 		if err := impl.BeforeDelete(); err != nil {
 			return err
@@ -259,7 +226,7 @@ func (tx TX) Delete(r Record) error {
 	}
 
 	kc, kv := r.Key()
-	query := tx.t.DeleteFrom(r.Table())
+	query := s.DeleteFrom(r.Table())
 	for i := 0; i < len(kc); i++ {
 		query.Where(dbr.Eq(kc[i], kv[i]))
 	}
@@ -276,13 +243,19 @@ func (tx TX) Delete(r Record) error {
 	return nil
 }
 
-func (tx TX) FindByKey(into Record, keyVals ...interface{}) error {
+func doAll(s dbrSelecter, typ Record) ([]Record, error) {
+	result := []Record{}
+	_, err := s.Select("*").From(typ.Table()).Load(dbr.InterfaceLoader(&result, typ))
+	return result, err
+}
+
+func doGet(s dbrSelecter, into Record, keyVals []interface{}) error {
 	kc, _ := into.Key()
 	if got, want := len(keyVals), len(kc); got != want {
 		return fmt.Errorf("expected %d values in key, got %d", want, got)
 	}
 
-	query := tx.t.Select("*").From(into.Table())
+	query := s.Select("*").From(into.Table())
 	for i := 0; i < len(kc); i++ {
 		query.Where(dbr.Eq(kc[i], keyVals[i]))
 	}
@@ -290,22 +263,22 @@ func (tx TX) FindByKey(into Record, keyVals ...interface{}) error {
 	return query.LoadOne(into)
 }
 
-func (tx TX) FindBy(into Record, where string, args ...interface{}) error {
-	return tx.t.Select("*").From(into.Table()).Where(where, args...).LoadOne(into)
+func doGetBy(s dbrSelecter, into Record, where string, args []interface{}) error {
+	return s.Select("*").From(into.Table()).Where(where, args...).LoadOne(into)
 }
 
-func (tx TX) FindAll(typ Record) ([]Record, error) {
+func doWhere(s dbrSelecter, typ Record, where string, args []interface{}) ([]Record, error) {
 	result := []Record{}
-	_, err := tx.t.Select("*").From(typ.Table()).Load(dbr.InterfaceLoader(&result, typ))
+	_, err := s.Select("*").From(typ.Table()).Where(where, args...).Load(dbr.InterfaceLoader(&result, typ))
 	return result, err
 }
 
-func (tx TX) FindByFilter(typ Record, where string) ([]Record, error) {
+func doWhereFilter(s dbrSelecter, typ Record, where string) ([]Record, error) {
 	result := []Record{}
 	cond, err := filter.Parse(where)
 	if err != nil {
 		return nil, err
 	}
-	_, err = tx.t.Select("*").From(typ.Table()).Where(cond).Load(dbr.InterfaceLoader(&result, typ))
+	_, err = s.Select("*").From(typ.Table()).Where(cond).Load(dbr.InterfaceLoader(&result, typ))
 	return result, err
 }

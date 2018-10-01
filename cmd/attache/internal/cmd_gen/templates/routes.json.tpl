@@ -12,8 +12,8 @@ import (
 
 func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Model.Name}}List() {
 	w := c.ResponseWriter()
-	all, err := c.DB().All(func() attache.Storable{ return new(models.{{.Model.Name}}) })
-	if err != nil && err != sql.ErrNoRows {
+	all, err := c.DB().All(new(models.{{.Model.Name}}))
+	if err != nil {
 		attache.ErrorFatal(err)
 	}
 	attache.RenderJSON(w, all)
@@ -24,8 +24,8 @@ func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Model.Name}}() {
 	r := c.Request()
 	id := r.FormValue("id")
 	var target models.{{.Model.Name}}
-	if err := c.DB().Find(&target, id); err != nil {
-		if err == sql.ErrNoRows {
+	if err := c.DB().Get(&target, id); err != nil {
+		if err == attache.ErrRecordNotFound {
 			attache.Error(404)
 		}
 		attache.ErrorFatal(err)
@@ -56,7 +56,7 @@ func (c *{{.ContextType}}) POST_{{.ScopeCamel}}{{.Model.Name}}() {
 	id := r.FormValue("id")
 	var target models.{{.Model.Name}}
 	if err := c.DB().Find(&target, id); err != nil {
-		if err == sql.ErrNoRows {
+		if err == attache.ErrRecordNotFound {
 			attache.Error(404)
 		}
 		attache.ErrorFatal(err)
@@ -79,8 +79,8 @@ func (c *{{.ContextType}}) DELETE_{{.ScopeCamel}}{{.Model.Name}}() {
 	r := c.Request()
 	id := r.FormValue("id")
 	var target models.{{.Model.Name}}
-	if err := c.DB().Find(&target, id); err != nil {
-		if err == sql.ErrNoRows {
+	if err := c.DB().Get(&target, id); err != nil {
+		if err == attache.ErrRecordNotFound {
 			w.WriteHeader(200)
 			return
 		}

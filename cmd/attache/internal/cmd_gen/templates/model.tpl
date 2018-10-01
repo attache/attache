@@ -7,9 +7,23 @@ import (
 
 type {{.Name}} struct { {{range .Fields}}{{.StructField}} {{.Type}} `db:"{{.Column}}"`;{{end}} }
 
-func New{{.Name}}() attache.Storable { return new({{.Name}}) }
+func New{{.Name}}() attache.Record { return new({{.Name}}) }
 
 func (m *{{.Name}}) Table() string { return {{printf "%q" .Table}} }
+
+func (m *{{.Name}}) Key() (columns []string, values []interface{}) {
+	columns = []string{
+		{{- range .Fields -}}
+			{{if .Key}}{{ printf "%q" .Column }},{{end}}
+		{{- end -}}
+	}
+	values = []interface{}{
+		{{- range .Fields -}}
+			{{if .Key}}m.{{ .StructField }},{{end}}
+		{{- end -}}
+	}
+	return
+}
 
 func (m *{{.Name}}) Insert() (columns []string, values []interface{}) {
 	columns = []string{
@@ -48,28 +62,3 @@ func (m *{{.Name}}) Update() (columns []string, values []interface{}) {
 	}
 	return
 }
-
-func (m *{{.Name}}) Select() (columns []string, into []interface{}) {
-	columns = []string{
-		{{- range .Fields -}}
-		{{ if not .NoSelect }}{{ printf "%q" .Column }},{{end}}
-		{{- end -}}
-	}
-	into = []interface{}{
-		{{- range .Fields -}}
-		{{ if not .NoSelect }}&m.{{.StructField}},{{end}}
-		{{- end -}}
-	}
-	return
-}
-
-func (m *{{.Name}}) KeyColumns() []string { return []string{
-	{{- range .Fields -}}
-		{{if .Key}}{{ printf "%q" .Column }},{{end}}
-	{{- end -}}
-} }
-func (m *{{.Name}}) KeyValues() []interface{} { return []interface{}{
-	{{- range .Fields -}}
-		{{if .Key}}m.{{ .StructField }},{{end}}
-	{{- end -}}
-} }

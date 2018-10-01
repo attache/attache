@@ -10,15 +10,15 @@
 					<tr>
 						<th>ID</th>
 						<th>Title</th>
-						<th>Text</th>
+						<th>Description</th>
 					</tr>
 				</thead>
 				<tbody>
 				{{range .}}
 					<tr>
-						<td><a href="/test/todo?id={{.ID}}">{{.ID}}</a></td>
+						<td><a href="/todo?id={{.ID}}">{{.ID}}</a></td>
 						<td>{{.Title}}</td>
-						<td>{{.Text}}</td>
+						<td>{{.Description}}</td>
 					</tr>
 				{{end}}
 				</tbody>

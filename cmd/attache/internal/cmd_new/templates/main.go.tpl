@@ -3,7 +3,14 @@ package main
 import (
     "net/http"
     "log"
+    
+    // database drivers
+    // (remove lines you don't need)
+    _ "github.com/mattn/go-sqlite3" // Sqlite3
+    _ "github.com/go-sql-driver/mysql" // MySQL
+    _ "github.com/lib/pq" // PostgreSQL
 
+    // attache
     "github.com/mccolljr/attache"
 )
 
@@ -14,8 +21,8 @@ type {{.Name}} struct {
     // capabilities
     attache.DefaultFileServer
     attache.DefaultViews
-    // attache.DefaultDB
-    // attache.DefaultSession
+    // attache.DefaultDB // enable database connectivity
+    // attache.DefaultSession // enable session storage
 }
 
 func (c *{{.Name}}) Init(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +36,7 @@ func (c *{{.Name}}) GET_(w http.ResponseWriter, r *http.Request) {
 
 // GET /index
 func (c *{{.Name}}) GET_Index(w http.ResponseWriter, r *http.Request) {
-    attache.RenderHTML(c, "index", w, nil)
+    attache.RenderHTML(c, "index")
 }
 
 func main() {

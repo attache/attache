@@ -81,6 +81,7 @@ func (c *Context) do(args []string) error {
 			}},
 			{Name: "secret", Files: []File{
 				{Name: "schema.sql", Body: []byte("")},
+				{Name: "run.sh", Body: []byte("DB_DRIVER=sqlite3 DB_DSN=:memory: go run *.go")},
 			}},
 		},
 	}.Build(cwd)

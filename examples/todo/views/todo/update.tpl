@@ -4,7 +4,7 @@
 <div class="container">
 	<div class="card">
 		<div class="card-body">
-			<form name="edit_todo" method="post" action="/test/todo?id={{.ID}}">
+			<form name="edit_todo" method="post" action="/todo?id={{.ID}}">
 				<fieldset>
 					<legend>Edit Todo</legend>
 					
@@ -25,13 +25,14 @@
 					</div>
 					
 					<div class="form-group">
-						<label for="Text">Text</label>
-						<input type="text" name="Text"
-								value="{{.Text}}" 
+						<label for="Description">Description</label>
+						<input type="text" name="Description"
+								value="{{.Description}}" 
 								
 								class="form-control"/>
 					</div>
 					
+					<a href="/todo/list" class="btn btn-default">Back</a>
 					<input type="submit" value="Update" class="btn btn-primary"/>
 				</fieldset>
 			</form>

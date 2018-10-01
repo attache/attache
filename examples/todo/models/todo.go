@@ -7,18 +7,24 @@ import (
 )
 
 type Todo struct {
-	ID    int64
-	Title string
-	Text  string
+	ID          int64  `db:"id"`
+	Title       string `db:"title"`
+	Description string `db:"description"`
 }
 
-func NewTodo() attache.Storable { return new(Todo) }
+func NewTodo() attache.Record { return new(Todo) }
 
 func (m *Todo) Table() string { return "todo" }
 
+func (m *Todo) Key() (columns []string, values []interface{}) {
+	columns = []string{"id"}
+	values = []interface{}{m.ID}
+	return
+}
+
 func (m *Todo) Insert() (columns []string, values []interface{}) {
-	columns = []string{"title", "text"}
-	values = []interface{}{m.Title, m.Text}
+	columns = []string{"title", "description"}
+	values = []interface{}{m.Title, m.Description}
 	return
 }
 
@@ -31,16 +37,7 @@ func (m *Todo) AfterInsert(result sql.Result) {
 }
 
 func (m *Todo) Update() (columns []string, values []interface{}) {
-	columns = []string{"title", "text"}
-	values = []interface{}{m.Title, m.Text}
+	columns = []string{"title", "description"}
+	values = []interface{}{m.Title, m.Description}
 	return
 }
-
-func (m *Todo) Select() (columns []string, into []interface{}) {
-	columns = []string{"id", "title", "text"}
-	into = []interface{}{&m.ID, &m.Title, &m.Text}
-	return
-}
-
-func (m *Todo) KeyColumns() []string     { return []string{"id"} }
-func (m *Todo) KeyValues() []interface{} { return []interface{}{m.ID} }

@@ -4,6 +4,13 @@ import (
 	"log"
 	"net/http"
 
+	// database drivers
+	// (remove lines you don't need)
+	// _ "github.com/go-sql-driver/mysql" // MySQL
+	// _ "github.com/lib/pq"              // PostgreSQL
+	_ "github.com/mattn/go-sqlite3" // Sqlite3
+
+	// attache
 	"github.com/mccolljr/attache"
 )
 
@@ -14,8 +21,8 @@ type Todo struct {
 	// capabilities
 	attache.DefaultFileServer
 	attache.DefaultViews
-	// attache.DefaultDB
-	// attache.DefaultSession
+	attache.DefaultDB // enable database connectivity
+	// attache.DefaultSession // enable session storage
 }
 
 func (c *Todo) Init(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +36,7 @@ func (c *Todo) GET_(w http.ResponseWriter, r *http.Request) {
 
 // GET /index
 func (c *Todo) GET_Index(w http.ResponseWriter, r *http.Request) {
-	attache.RenderHTML(c, "index", w, nil)
+	attache.RenderHTML(c, "index")
 }
 
 func main() {
