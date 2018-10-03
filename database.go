@@ -66,9 +66,6 @@ type (
 
 // DBRunner is the set of functions provided by both DB and TX
 type DBRunner interface {
-	// Session provides access to the underlying dbr.SessionRunner
-	Session() dbr.SessionRunner
-
 	// Insert inserts the Record into the database
 	Insert(Record) error
 
@@ -101,7 +98,7 @@ var (
 
 type DB struct{ s *dbr.Session }
 
-func (db DB) Session() dbr.SessionRunner                    { return db.s }
+func (db DB) Raw() *dbr.Session                             { return db.s }
 func (db DB) Insert(r Record) error                         { return doInsert(db.s, r) }
 func (db DB) Update(r Record) error                         { return doUpdate(db.s, r) }
 func (db DB) Delete(r Record) error                         { return doDelete(db.s, r) }
@@ -132,7 +129,10 @@ func (db DB) Tx(block func(tx TX) error) error {
 
 type TX struct{ s *dbr.Tx }
 
-func (db TX) Session() dbr.SessionRunner                    { return db.s }
+func x() {
+}
+
+func (db TX) Raw() *dbr.Tx                                  { return db.s }
 func (db TX) Insert(r Record) error                         { return doInsert(db.s, r) }
 func (db TX) Update(r Record) error                         { return doUpdate(db.s, r) }
 func (db TX) Delete(r Record) error                         { return doDelete(db.s, r) }
