@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/Masterminds/sprig"
@@ -69,19 +70,36 @@ func (v viewCache) Render(name string, data interface{}) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (v viewCache) load(path, prefix string, layouts []string) error {
+type viewLayout struct {
+	File, Body string
+}
+
+var viewParseErrRx = regexp.MustCompile("^template: (?:[^:]*):([0-9]+): (.*)")
+
+func viewParseError(currentFile string, e error) error {
+	result := viewParseErrRx.FindStringSubmatch(e.Error())
+	if result != nil {
+		return fmt.Errorf("parse %s: line %s: %s", currentFile, result[1], result[2])
+	}
+	return fmt.Errorf("parse %s: %s", currentFile, e)
+}
+
+func (v viewCache) load(path, prefix string, layouts []viewLayout) error {
 	stats, err := ioutil.ReadDir(path)
 	if err != nil {
 		return err
 	}
-
-	layout, err := ioutil.ReadFile(filepath.Join(path, d_LAYOUT_FILE))
+	layoutPath := filepath.Join(path, d_LAYOUT_FILE)
+	layout, err := ioutil.ReadFile(layoutPath)
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
 	if layout != nil {
-		layouts = append(layouts, string(layout))
+		layouts = append(layouts, viewLayout{
+			File: layoutPath,
+			Body: string(layout),
+		})
 	}
 
 	var subdirs []string
@@ -100,13 +118,13 @@ func (v viewCache) load(path, prefix string, layouts []string) error {
 
 		tpl := template.New("").Funcs(sprig.FuncMap())
 		for _, l := range layouts {
-			if _, err := tpl.Parse(l); err != nil {
-				return err
+			if _, err := tpl.Parse(l.Body); err != nil {
+				return viewParseError(l.File, err)
 			}
 		}
 
 		if _, err := tpl.ParseFiles(fpath); err != nil {
-			return err
+			return viewParseError(fpath, err)
 		}
 
 		var tplName string
