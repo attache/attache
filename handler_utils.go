@@ -84,7 +84,8 @@ func RenderHTML(ctx interface {
 }, name string) {
 	buf, err := ctx.Views().Render(name, ctx)
 	if err != nil {
-		ErrorFatal(err)
+		//ErrorFatal(err)
+		panic(err)
 	}
 
 	ctx.ResponseWriter().Header().Set("content-type", "text/html")
