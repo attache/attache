@@ -1,0 +1,1 @@
+DB_DRIVER="sqlite3" DB_DSN="secret/app.db" go run *.go
