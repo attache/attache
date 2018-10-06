@@ -92,7 +92,7 @@ func templatesAtConfJsonTpl() (*asset, error) {
 	return a, nil
 }
 
-var _templatesIndexTplTpl = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x6c\x8c\x41\x0a\x02\x31\x0c\x45\xf7\x9e\xa2\xe4\x00\xf6\x02\x8e\xd7\x70\x3f\xed\x1f\x26\x18\x3b\xd2\x04\x74\x08\xb9\xbb\x58\x04\x17\xba\x7d\xef\xf1\xdc\x2b\x16\x6e\x48\x64\x6c\x02\x8a\xb8\x40\xca\x76\x83\x3b\x5a\x8d\x38\x7c\x03\xb5\x5d\xa0\x14\x71\x12\x6e\xd7\xd4\x21\xd3\x87\xad\x80\x51\x5a\x3b\x96\x89\xf2\x03\x73\x2e\xaa\x99\x5b\xc5\xf3\x58\x54\x29\x9f\xff\xcc\x4a\xe7\xbb\xbd\x6f\xbf\x6e\xde\xea\x4e\x83\x0c\xf3\x0a\x00\x00\xff\xff\xb1\x9a\xda\x4a\xa3\x00\x00\x00")
+var _templatesIndexTplTpl = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x6c\x8e\x4d\x0a\xc2\x30\x10\x85\xf7\x3d\xc5\x38\x07\x30\x17\xb0\x82\xa7\x70\xdd\x26\xaf\x74\x30\x26\x25\x19\xd1\x12\xe6\xee\x22\x04\x5c\xe8\xf6\xfd\x7c\x7c\xad\x05\x2c\x92\x40\xac\xa2\x11\x6c\x76\x45\xf4\xf9\x8e\xd6\x90\x82\xd9\xf0\x1d\x54\xdd\x23\x2a\x9b\x9d\xa2\xa4\x1b\x15\xc4\xb1\x67\x2b\xa0\x4c\x6b\xc1\x32\xb2\x7b\x62\x76\xbe\x56\x27\x29\xe0\x75\xf4\xb5\xb2\x3b\xff\x81\xf9\x22\x9b\x7e\x68\xbf\xdd\x9c\xc3\xce\x66\x43\x37\x21\xcd\xb4\xe7\x47\xa1\x8b\xea\xe4\x57\xd0\xb4\x6d\x51\xfc\xa4\x92\xd3\x61\xe8\xf7\x77\x00\x00\x00\xff\xff\x20\xca\x1d\xd9\xc8\x00\x00\x00")
 
 func templatesIndexTplTplBytes() ([]byte, error) {
 	return bindataRead(
@@ -107,8 +107,8 @@ func templatesIndexTplTpl() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "templates/index.tpl.tpl", size: 163, mode: os.FileMode(420), modTime: time.Unix(1533095751, 0)}
-	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0xf8, 0x9b, 0x59, 0x57, 0x8b, 0x2a, 0x90, 0x5, 0x23, 0x15, 0x13, 0x57, 0xcb, 0x68, 0x7, 0x5, 0xf5, 0x7d, 0x86, 0xf6, 0x62, 0x64, 0xeb, 0xcc, 0x39, 0x72, 0x0, 0x4e, 0xcd, 0x61, 0x4f, 0x92}}
+	info := bindataFileInfo{name: "templates/index.tpl.tpl", size: 200, mode: os.FileMode(420), modTime: time.Unix(1538841258, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x88, 0xa2, 0xca, 0x22, 0x19, 0xf9, 0x8a, 0xd7, 0xc3, 0xbf, 0x5a, 0xbe, 0xde, 0x3a, 0xbb, 0x86, 0x42, 0x88, 0x2c, 0x63, 0xd2, 0x15, 0x81, 0x75, 0xa9, 0x26, 0x1b, 0x77, 0x9c, 0xe7, 0xf9, 0xb7}}
 	return a, nil
 }
 
@@ -147,7 +147,7 @@ func templatesMainGoTpl() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "templates/main.go.tpl", size: 1088, mode: os.FileMode(420), modTime: time.Unix(1538382836, 0)}
+	info := bindataFileInfo{name: "templates/main.go.tpl", size: 1088, mode: os.FileMode(420), modTime: time.Unix(1538383245, 0)}
 	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x8a, 0x3a, 0x2d, 0x42, 0xee, 0x79, 0xc1, 0xa2, 0x9d, 0x37, 0x30, 0x8c, 0x3c, 0xb4, 0x4e, 0x53, 0x95, 0x3e, 0x5a, 0x36, 0x28, 0x83, 0xf7, 0xe9, 0x25, 0x4d, 0x40, 0x88, 0x12, 0x83, 0xa9, 0x18}}
 	return a, nil
 }

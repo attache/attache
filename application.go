@@ -97,7 +97,7 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Initialized a Context instance for use.
+// Initialize a Context instance for use
 func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) error {
 	// set Request and ResponseWriter for this context
 	bctx := ictx.baseContext()
@@ -142,6 +142,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 	return nil
 }
 
+// recover is the deferred recovery handler run for each request
 func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 	val := recover()
 	if val == nil {
@@ -168,15 +169,16 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 	httpResult{code: 500}.ServeHTTP(w, r)
 }
 
-// RunAt runs an HTTP server to handle requests to a
+// RunAt runs an HTTP server to handle requests to the `a`
 func (a *Application) RunAt(addr string) error {
 	return http.ListenAndServe(addr, middleware.DefaultLogger(a))
 }
 
-// Run runs an HTTP server to handle requests to a
-// on the default ":8080"
+// Run runs an HTTP server to handle requests to `a` on the
+// default port, 8080
 func (a *Application) Run() error { return a.RunAt(":8080") }
 
+// RunWithServer mounts `a` to `s` and starts the server
 func (a *Application) RunWithServer(s *http.Server) error {
 	s.Handler = middleware.DefaultLogger(a)
 	return s.ListenAndServe()
@@ -328,7 +330,7 @@ func bootstrapRouter(a *Application, impl Context) error {
 
 		// Guard methods
 		if strings.HasPrefix(m.Name, "GUARD_") {
-			path := pathForName(m.Name[6:])
+			path := pathForName(m.Name[6:] /* strip GUARD_ prefix */)
 
 			guards = append(guards, guard{
 				path:  path,
