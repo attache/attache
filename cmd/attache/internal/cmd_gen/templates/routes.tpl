@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"database/sql"
 
-	"github.com/mccolljr/attache"
+	"github.com/attache/attache"
 )
 
 func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Model.Name}}New() {

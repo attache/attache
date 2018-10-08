@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/mccolljr/attache"
-	"github.com/mccolljr/attache/examples/todo/models"
+	"github.com/attache/attache"
+	"github.com/attache/attache/examples/todo/models"
 )
 
 func (c *Todo) GET_TodoNew() {

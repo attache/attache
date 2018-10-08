@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gocraft/dbr"
-	"github.com/mccolljr/attache/filter"
+	"github.com/attache/attache/filter"
 )
 
 var ErrRecordNotFound = dbr.ErrNotFound

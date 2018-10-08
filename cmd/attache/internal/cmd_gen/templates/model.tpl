@@ -2,7 +2,7 @@ package models
 
 import (
 	"database/sql"
-	"github.com/mccolljr/attache"
+	"github.com/attache/attache"
 )
 
 type {{.Name}} struct { {{range .Fields}}{{.StructField}} {{.Type}} `db:"{{.Column}}"`;{{end}} }

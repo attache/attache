@@ -11,7 +11,7 @@ import (
     _ "github.com/lib/pq" // PostgreSQL
 
     // attache
-    "github.com/mccolljr/attache"
+    "github.com/attache/attache"
 )
 
 type {{.Name}} struct {

@@ -11,7 +11,7 @@ import (
 	_ "github.com/mattn/go-sqlite3" // Sqlite3
 
 	// attache
-	"github.com/mccolljr/attache"
+	"github.com/attache/attache"
 )
 
 type Todo struct {

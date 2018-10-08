@@ -1,7 +1,7 @@
 ![Attache](https://user-images.githubusercontent.com/8538024/46573302-529f9180-c961-11e8-97a0-051bcc399e13.png)
 
-[![godoc](https://img.shields.io/badge/godoc-reference-5272B4.svg)](https://godoc.org/github.com/mccolljr/attache)
-[![Go Report Card](https://goreportcard.com/badge/github.com/mccolljr/attache)](https://goreportcard.com/report/github.com/mccolljr/attache)
+[![godoc](https://img.shields.io/badge/godoc-reference-5272B4.svg)](https://godoc.org/github.com/attache/attache)
+[![Go Report Card](https://goreportcard.com/badge/github.com/attache/attache)](https://goreportcard.com/report/github.com/attache/attache)
 
 _Since this project is still a work in progress, please make sure you test it out before deciding to use it._
 
@@ -25,7 +25,7 @@ I'm a little nervous. All of this is my own code right now. It feels weird to pu
 # Installation
 
 ```bash
-$> go get -u github.com/mccolljr/attache/...
+$> go get -u github.com/attache/attache/...
 ```
 
 # Usage

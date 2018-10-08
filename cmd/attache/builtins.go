@@ -1,9 +1,9 @@
 package main
 
 import (
-	"github.com/mccolljr/attache/cmd/attache/internal/cmd_gen"
-	"github.com/mccolljr/attache/cmd/attache/internal/cmd_new"
-	"github.com/mccolljr/attache/cmd/attache/shared"
+	"github.com/attache/attache/cmd/attache/internal/cmd_gen"
+	"github.com/attache/attache/cmd/attache/internal/cmd_new"
+	"github.com/attache/attache/cmd/attache/shared"
 )
 
 var builtins = map[string]shared.Plugin{

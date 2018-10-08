@@ -3,7 +3,7 @@ package models
 import (
 	"database/sql"
 
-	"github.com/mccolljr/attache"
+	"github.com/attache/attache"
 )
 
 type Todo struct {

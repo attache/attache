@@ -1,6 +1,6 @@
 package cmd_gen
 
-import "github.com/mccolljr/attache/cmd/attache/shared"
+import "github.com/attache/attache/cmd/attache/shared"
 
 //go:generate go-bindata -pkg cmd_gen templates
 

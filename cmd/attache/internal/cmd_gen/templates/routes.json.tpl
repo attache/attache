@@ -7,7 +7,7 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"github.com/mccolljr/attache"
+	"github.com/attache/attache"
 )
 
 func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Model.Name}}List() {

@@ -14,7 +14,7 @@ import (
 
 	"github.com/iancoleman/strcase"
 
-	"github.com/mccolljr/attache/cmd/attache/shared"
+	"github.com/attache/attache/cmd/attache/shared"
 	"golang.org/x/tools/imports"
 )
 
