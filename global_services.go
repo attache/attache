@@ -25,9 +25,6 @@ func ViewCacheRefresh(conf ViewConfig) error {
 		return err
 	}
 
-	gsCache.vcCache.Lock()
-	defer gsCache.vcCache.Unlock()
-
 	gsCache.vcCache.put(conf, newCache)
 	return nil
 }
