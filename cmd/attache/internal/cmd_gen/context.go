@@ -139,11 +139,11 @@ func (c *Context) init(args []string) error {
 
 	if c.DoViews {
 		createForm := template.Must(template.New("").Delims("[[", "]]").
-			Parse(MustAssetString("templates/view_create.tpl")))
+			Parse(string(MustAsset("templates/view_create.tpl"))))
 		updateForm := template.Must(template.New("").Delims("[[", "]]").
-			Parse(MustAssetString("templates/view_update.tpl")))
+			Parse(string(MustAsset("templates/view_update.tpl"))))
 		listView := template.Must(template.New("").Delims("[[", "]]").
-			Parse(MustAssetString("templates/view_list.tpl")))
+			Parse(string(MustAsset("templates/view_list.tpl"))))
 
 		var (
 			create = &strings.Builder{}
@@ -243,7 +243,7 @@ func (ctx *Context) do() error {
 		buf.Reset()
 
 		// generate model file
-		tpl, err := template.New("").Parse(MustAssetString("templates/model.tpl"))
+		tpl, err := template.New("").Parse(string(MustAsset("templates/model.tpl")))
 		if err != nil {
 			return err
 		}
@@ -279,9 +279,9 @@ func (ctx *Context) do() error {
 		)
 
 		if ctx.JSONRoutes {
-			tpl, err = template.New("").Parse(MustAssetString("templates/routes.json.tpl"))
+			tpl, err = template.New("").Parse(string(MustAsset("templates/routes.json.tpl")))
 		} else {
-			tpl, err = template.New("").Parse(MustAssetString("templates/routes.tpl"))
+			tpl, err = template.New("").Parse(string(MustAsset("templates/routes.tpl")))
 		}
 
 		if err != nil {

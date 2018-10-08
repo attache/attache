@@ -103,7 +103,7 @@ func (c *Context) FileTemplate(name string) func() ([]byte, error) {
 
 		tpl = template.Must(
 			tpl.Parse(
-				MustAssetString(fullPath),
+				string(MustAsset(fullPath)),
 			),
 		)
 
