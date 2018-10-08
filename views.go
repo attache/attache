@@ -44,6 +44,7 @@ type ViewCache interface {
 	// ViewCache should not be implemented outside of this package
 	private()
 }
+
 type viewCache map[string]View
 
 func (v viewCache) private() {}

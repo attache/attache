@@ -19,6 +19,19 @@ func ViewCacheFor(conf ViewConfig) (ViewCache, error) {
 	return gsCache.viewsFor(conf)
 }
 
+func ViewCacheRefresh(conf ViewConfig) error {
+	newCache := viewCache{}
+	if err := newCache.load(conf.Root, "", nil); err != nil {
+		return err
+	}
+
+	gsCache.vcCache.Lock()
+	defer gsCache.vcCache.Unlock()
+
+	gsCache.vcCache.put(conf, newCache)
+	return nil
+}
+
 // DBFor will returh the cached DB or a newly initialized DB
 // for the given DBConfig. Any error encountered while
 // initializing a new DB is returned.
