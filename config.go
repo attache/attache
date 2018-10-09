@@ -18,15 +18,15 @@ type FileServerConfig struct {
 	BasePath string
 }
 
-// TokenConfig provides configuration options for
-// managed JWTs
-type TokenConfig struct {
-	Secret []byte
-}
-
 // SessionConfig provides configuration options for
 // user sessions
 type SessionConfig struct {
 	Name   string
 	Secret []byte
+}
+
+// EnvironmentConfig provides configuration options
+// for auto-loading environment variables
+type EnvironmentConfig struct {
+	EnvPath string
 }

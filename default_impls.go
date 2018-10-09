@@ -6,10 +6,22 @@ import (
 )
 
 var (
-	_ HasViews   = (*DefaultViews)(nil)
-	_ HasSession = (*DefaultSession)(nil)
-	_ HasDB      = (*DefaultDB)(nil)
+	_ HasViews       = (*DefaultViews)(nil)
+	_ HasSession     = (*DefaultSession)(nil)
+	_ HasDB          = (*DefaultDB)(nil)
+	_ HasEnvironment = (*DefaultEnvironment)(nil)
 )
+
+// DefaultEnvironment is a type that can be embedded into a Context type
+// to enable auto-load of environment variables with default
+// configuration options
+type DefaultEnvironment struct{}
+
+func (*DefaultEnvironment) CONFIG_Environment() EnvironmentConfig {
+	return EnvironmentConfig{
+		EnvPath: envOrDefault("ENV_FILE", "secret/dev.env"),
+	}
+}
 
 // DefaultViews is a type that can be embedded into a Context type
 // to enable views with default configuration options

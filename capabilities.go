@@ -26,3 +26,9 @@ type HasSession interface {
 	Session() Session
 	setSession(s Session)
 }
+
+// HasEnvironment is the interface implemented by Context types
+// that auto-load environment variables
+type HasEnvironment interface {
+	CONFIG_Environment() EnvironmentConfig
+}
