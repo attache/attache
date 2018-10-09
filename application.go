@@ -169,19 +169,40 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 	httpResult{code: 500}.ServeHTTP(w, r)
 }
 
-// RunAt runs an HTTP server to handle requests to the `a`
-func (a *Application) RunAt(addr string) error {
-	return http.ListenAndServe(addr, middleware.DefaultLogger(a))
+func (a *Application) getLoggingHandler() http.Handler {
+	return middleware.DefaultLogger(a)
 }
 
 // Run runs an HTTP server to handle requests to `a` on the
 // default port, 8080
 func (a *Application) Run() error { return a.RunAt(":8080") }
 
-// RunWithServer mounts `a` to `s` and starts the server
+// RunAt runs an HTTP server to handle requests to `a`
+func (a *Application) RunAt(addr string) error {
+	return http.ListenAndServe(addr, a.getLoggingHandler())
+}
+
+// RunWithServer mounts `a` to `s` and starts listening
 func (a *Application) RunWithServer(s *http.Server) error {
-	s.Handler = middleware.DefaultLogger(a)
+	s.Handler = a.getLoggingHandler()
 	return s.ListenAndServe()
+}
+
+// RunTLS runs an HTTP serverto handle requsts to `a` via TLS on the
+// default port, 8443
+func (a *Application) RunTLS(certFile, keyFile string) error {
+	return a.RunAtTLS(":8443", certFile, keyFile)
+}
+
+// RunAtTLS runs an HTTP server to handle requests to `a` via TLS
+func (a *Application) RunAtTLS(addr, certFile, keyFile string) error {
+	return http.ListenAndServeTLS(addr, certFile, keyFile, a.getLoggingHandler())
+}
+
+// RunWithServerTLS mounts `a` to `s` and starts listening via TLS
+func (a *Application) RunWithServerTLS(s *http.Server, certFile, keyFile string) error {
+	s.Handler = a.getLoggingHandler()
+	return s.ListenAndServeTLS(certFile, keyFile)
 }
 
 var (
