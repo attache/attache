@@ -3,6 +3,7 @@ package attache
 import (
 	"github.com/gorilla/schema"
 	"github.com/gorilla/sessions"
+	"github.com/joho/godotenv"
 )
 
 var (
@@ -10,6 +11,12 @@ var (
 	gsFormDecoder = schema.NewDecoder()
 	gsSessions    = sessions.NewCookieStore()
 )
+
+// LoadEnvironment will attempt to load environment variables
+// based on the given EnvironmentConfig
+func LoadEnvironment(conf EnvironmentConfig) error {
+	return godotenv.Load(conf.EnvPath)
+}
 
 // ViewCacheFor will return the cached ViewCache or a
 // newly initialized ViewCache for the given ViewConfig.

@@ -106,7 +106,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 
 	// Initialize views when context has view capability
 	if impl, ok := ictx.(HasViews); ok {
-		views, err := gsCache.viewsFor(impl.CONFIG_Views())
+		views, err := ViewCacheFor(impl.CONFIG_Views())
 		if err != nil {
 			return err
 		}
@@ -115,7 +115,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 
 	// Initialize db when context has db capability
 	if impl, ok := ictx.(HasDB); ok {
-		db, err := gsCache.dbFor(impl.CONFIG_DB())
+		db, err := DBFor(impl.CONFIG_DB())
 		if err != nil {
 			return err
 		}
@@ -228,7 +228,7 @@ func Bootstrap(ctxType Context) (*Application, error) {
 
 	a.contextType = t
 
-	if err := bootstrapTryContextInit(ctxType); err != nil {
+	if err := bootstrapContextInit(ctxType); err != nil {
 		return nil, err
 	}
 
@@ -239,10 +239,18 @@ func Bootstrap(ctxType Context) (*Application, error) {
 	return &a, nil
 }
 
-func bootstrapTryContextInit(impl Context) error {
+func bootstrapContextInit(impl Context) error {
+	// Attempt to load environment first, if supported by context
+	if impl, ok := impl.(HasEnvironment); ok {
+		conf := impl.CONFIG_Environment()
+		if err := LoadEnvironment(conf); err != nil {
+			return BootstrapError{Cause: err, Phase: "load environment"}
+		}
+	}
+
 	// Attempt to load views, if supported by context
 	if impl, ok := impl.(HasViews); ok {
-		_, err := gsCache.viewsFor(impl.CONFIG_Views())
+		_, err := ViewCacheFor(impl.CONFIG_Views())
 		if err != nil {
 			return BootstrapError{Cause: err, Phase: "init views"}
 		}
@@ -250,7 +258,7 @@ func bootstrapTryContextInit(impl Context) error {
 
 	// Attempt db connection, if supported by context
 	if impl, ok := impl.(HasDB); ok {
-		_, err := gsCache.dbFor(impl.CONFIG_DB())
+		_, err := DBFor(impl.CONFIG_DB())
 		if err != nil {
 			return BootstrapError{Cause: err, Phase: "init database"}
 		}

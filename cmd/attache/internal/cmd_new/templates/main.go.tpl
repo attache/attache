@@ -19,6 +19,7 @@ type {{.Name}} struct {
     attache.BaseContext 
 
     // capabilities
+    attache.DefaultEnvironment
     attache.DefaultFileServer
     attache.DefaultViews
     // attache.DefaultDB // enable database connectivity
