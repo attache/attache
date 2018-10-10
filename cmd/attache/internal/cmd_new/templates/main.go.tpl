@@ -31,12 +31,12 @@ func (c *{{.Name}}) Init(w http.ResponseWriter, r *http.Request) {
 }
 
 // GET /
-func (c *{{.Name}}) GET_(w http.ResponseWriter, r *http.Request) {
-    c.GET_Index(w, r)
+func (c *{{.Name}}) GET_() {
+    c.GET_Index()
 }
 
 // GET /index
-func (c *{{.Name}}) GET_Index(w http.ResponseWriter, r *http.Request) {
+func (c *{{.Name}}) GET_Index() {
     attache.RenderHTML(c, "index")
 }
 
