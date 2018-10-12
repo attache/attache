@@ -37,7 +37,7 @@ func (d *DefaultViews) CONFIG_Views() ViewConfig {
 }
 
 func (d *DefaultViews) Views() ViewCache     { return d.views }
-func (d *DefaultViews) setViews(v ViewCache) { d.views = v }
+func (d *DefaultViews) SetViews(v ViewCache) { d.views = v }
 
 func (d *DefaultViews) ViewData() interface{}        { return d.viewData }
 func (d *DefaultViews) SetViewData(data interface{}) { d.viewData = data }
@@ -57,7 +57,7 @@ func (d *DefaultDB) CONFIG_DB() DBConfig {
 }
 
 func (d *DefaultDB) DB() DB      { return d.db }
-func (d *DefaultDB) setDB(db DB) { d.db = db }
+func (d *DefaultDB) SetDB(db DB) { d.db = db }
 
 // DefaultSession is a type that can be embedded into a Context type
 // to enable user sessions
@@ -66,7 +66,7 @@ type DefaultSession struct {
 }
 
 func (d *DefaultSession) Session() Session     { return d.sess }
-func (d *DefaultSession) setSession(s Session) { d.sess = s }
+func (d *DefaultSession) SetSession(s Session) { d.sess = s }
 func (d *DefaultSession) CONFIG_Session() SessionConfig {
 	return SessionConfig{
 		Name:   envOrDefault("SESSION_NAME", "AttacheSession"),

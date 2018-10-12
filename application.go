@@ -110,7 +110,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		if err != nil {
 			return err
 		}
-		impl.setViews(views)
+		impl.SetViews(views)
 	}
 
 	// Initialize db when context has db capability
@@ -120,7 +120,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 			return err
 		}
 
-		impl.setDB(db)
+		impl.SetDB(db)
 	}
 
 	// Initialize session when context has session capability
@@ -133,7 +133,7 @@ func initContextInstance(ictx Context, w http.ResponseWriter, r *http.Request) e
 		}
 
 		s.Options.HttpOnly = true
-		impl.setSession(Session{s})
+		impl.SetSession(Session{s})
 	}
 
 	// Initialize context

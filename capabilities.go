@@ -4,8 +4,8 @@ package attache
 // that use server-rendered views
 type HasViews interface {
 	CONFIG_Views() ViewConfig
+	SetViews(ViewCache)
 	Views() ViewCache
-	setViews(ViewCache)
 
 	ViewData() interface{}
 	SetViewData(data interface{})
@@ -15,16 +15,16 @@ type HasViews interface {
 // that use a database connection
 type HasDB interface {
 	CONFIG_DB() DBConfig
+	SetDB(DB)
 	DB() DB
-	setDB(DB)
 }
 
 // HasSession is the interface implemented by Context types
 // that use user sessions
 type HasSession interface {
 	CONFIG_Session() SessionConfig
+	SetSession(Session)
 	Session() Session
-	setSession(s Session)
 }
 
 // HasEnvironment is the interface implemented by Context types
