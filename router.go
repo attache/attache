@@ -151,6 +151,7 @@ func (n *node) split(split int) {
 	n.prefix = start
 	n.kids = map[byte]*node{end[0]: newn}
 	n.methods = map[string]stack{}
+	n.mount = nil
 	if n.hasOwnGuard {
 		n.hasOwnGuard = false
 		n.guard = n.guard[:len(n.guard)-1]
