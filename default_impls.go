@@ -17,6 +17,7 @@ var (
 // configuration options
 type DefaultEnvironment struct{}
 
+// CONFIG_Environment implements HasEnvironment for DefaultEnvironment
 func (*DefaultEnvironment) CONFIG_Environment() EnvironmentConfig {
 	return EnvironmentConfig{
 		EnvPath: envOrDefault("ENV_FILE", "secret/dev.env"),
@@ -30,16 +31,24 @@ type DefaultViews struct {
 	viewData interface{}
 }
 
+// CONFIG_Views implements HasViews for DefaultViews
 func (d *DefaultViews) CONFIG_Views() ViewConfig {
 	return ViewConfig{
-		Root: "views",
+		Driver: envOrDefault("VIEW_DRIVER", "attache"),
+		Root:   envOrDefault("VIEW_ROOT", "views"),
 	}
 }
 
-func (d *DefaultViews) Views() ViewCache     { return d.views }
+// Views implements HasViews for DefaultViews
+func (d *DefaultViews) Views() ViewCache { return d.views }
+
+// SetViews implements HasViews for DefaultViews
 func (d *DefaultViews) SetViews(v ViewCache) { d.views = v }
 
-func (d *DefaultViews) ViewData() interface{}        { return d.viewData }
+// ViewData implements HasViews for DefaultViews
+func (d *DefaultViews) ViewData() interface{} { return d.viewData }
+
+// SetViewData implements HasViews for DefaultViews
 func (d *DefaultViews) SetViewData(data interface{}) { d.viewData = data }
 
 // DefaultDB is a type that can be embedded into a Context type
@@ -49,6 +58,7 @@ type DefaultDB struct {
 	db DB
 }
 
+// CONFIG_DB implements HasDB for DefaultDB
 func (d *DefaultDB) CONFIG_DB() DBConfig {
 	return DBConfig{
 		Driver: envOrDefault("DB_DRIVER", ""),
@@ -56,7 +66,10 @@ func (d *DefaultDB) CONFIG_DB() DBConfig {
 	}
 }
 
-func (d *DefaultDB) DB() DB      { return d.db }
+// DB implements HasDB for DefaultDB
+func (d *DefaultDB) DB() DB { return d.db }
+
+// SetDB implements HasDB for DefaultDB
 func (d *DefaultDB) SetDB(db DB) { d.db = db }
 
 // DefaultSession is a type that can be embedded into a Context type
@@ -65,14 +78,19 @@ type DefaultSession struct {
 	sess Session
 }
 
-func (d *DefaultSession) Session() Session     { return d.sess }
-func (d *DefaultSession) SetSession(s Session) { d.sess = s }
+// CONFIG_Session implements HasSession for DefaultSession
 func (d *DefaultSession) CONFIG_Session() SessionConfig {
 	return SessionConfig{
 		Name:   envOrDefault("SESSION_NAME", "AttacheSession"),
 		Secret: []byte(envOrDefault("SESSION_SECRET", "")),
 	}
 }
+
+// Session implements HasSession for DefaultSession
+func (d *DefaultSession) Session() Session { return d.sess }
+
+// SetSession implements HasSession for DefaultSession
+func (d *DefaultSession) SetSession(s Session) { d.sess = s }
 
 // DefaultFileServer is a type that can be embedded into a Context type
 // to enable a static file server with default configuration options

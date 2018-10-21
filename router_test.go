@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestNodes(t *testing.T) {
+func TestRouter(t *testing.T) {
 	cases := []struct {
 		method, path string
 		wantErr      sentinelError

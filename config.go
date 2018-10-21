@@ -8,14 +8,13 @@ type DBConfig struct {
 // ViewConfig provides configuration options for initializing
 // a ViewCache
 type ViewConfig struct {
-	Root string
+	Driver, Root string
 }
 
 // FileServerConfig provides configuration options for
 // starting a file server
 type FileServerConfig struct {
-	Root     string
-	BasePath string
+	Root, BasePath string
 }
 
 // SessionConfig provides configuration options for

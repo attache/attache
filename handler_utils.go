@@ -44,14 +44,6 @@ func ErrorMessageJSON(code int, msg string, args ...interface{}) {
 	})
 }
 
-func Must(callResult ...interface{}) {
-	for _, elt := range callResult {
-		if err, ok := elt.(error); ok {
-			ErrorFatal(err)
-		}
-	}
-}
-
 // Success immediately terminates the executing handler chain with
 // a 200 OK
 func Success() { Error(200) }
@@ -82,14 +74,15 @@ func RenderHTML(ctx interface {
 	Context
 	HasViews
 }, name string) {
-	buf, err := ctx.Views().Render(name, ctx)
-	if err != nil {
-		//ErrorFatal(err)
+	buf := getbuf()
+	defer putbuf(buf)
+
+	if err := ctx.Views().Get(name).Execute(buf, ctx); err != nil {
 		panic(err)
 	}
 
 	ctx.ResponseWriter().Header().Set("content-type", "text/html")
-	ctx.ResponseWriter().Write(buf)
+	buf.WriteTo(ctx.ResponseWriter())
 }
 
 // RenderJSON marshals data to JSON, then writes the data to w with a
