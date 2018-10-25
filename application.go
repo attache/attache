@@ -1,6 +1,7 @@
 package attache
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"log"
@@ -22,13 +23,25 @@ type Application struct {
 	r           router
 	providers   stack
 	contextType reflect.Type
+
+	// NoLogging can be set to true to disable logging
+	NoLogging  bool
+	logHandler http.Handler
 }
 
 // ServeHTTP implements http.Handler for *Application.
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Ensure a's recovery method runs.
 	defer a.recover(w, r)
+	// call main handler func
+	if a.NoLogging {
+		a.baseHandler(w, r)
+	} else {
+		a.logHandler.ServeHTTP(w, r)
+	}
+}
 
+func (a *Application) baseHandler(w http.ResponseWriter, r *http.Request) {
 	// Try to locate the handler stack for the request's path.
 	n := a.r.root.lookup(r.URL.Path)
 	if n == nil || (!n.hasMount() && len(n.methods) == 0) {
@@ -169,22 +182,18 @@ func (*Application) recover(w http.ResponseWriter, r *http.Request) {
 	httpResult{code: 500}.ServeHTTP(w, r)
 }
 
-func (a *Application) getLoggingHandler() http.Handler {
-	return middleware.DefaultLogger(a)
-}
-
 // Run runs an HTTP server to handle requests to `a` on the
 // default port, 8080
 func (a *Application) Run() error { return a.RunAt(":8080") }
 
 // RunAt runs an HTTP server to handle requests to `a`
 func (a *Application) RunAt(addr string) error {
-	return http.ListenAndServe(addr, a.getLoggingHandler())
+	return http.ListenAndServe(addr, a)
 }
 
 // RunWithServer mounts `a` to `s` and starts listening
 func (a *Application) RunWithServer(s *http.Server) error {
-	s.Handler = a.getLoggingHandler()
+	s.Handler = a
 	return s.ListenAndServe()
 }
 
@@ -196,12 +205,12 @@ func (a *Application) RunTLS(certFile, keyFile string) error {
 
 // RunAtTLS runs an HTTP server to handle requests to `a` via TLS
 func (a *Application) RunAtTLS(addr, certFile, keyFile string) error {
-	return http.ListenAndServeTLS(addr, certFile, keyFile, a.getLoggingHandler())
+	return http.ListenAndServeTLS(addr, certFile, keyFile, a)
 }
 
 // RunWithServerTLS mounts `a` to `s` and starts listening via TLS
 func (a *Application) RunWithServerTLS(s *http.Server, certFile, keyFile string) error {
-	s.Handler = a.getLoggingHandler()
+	s.Handler = a
 	return s.ListenAndServeTLS(certFile, keyFile)
 }
 
@@ -236,6 +245,8 @@ func Bootstrap(ctxType Context) (*Application, error) {
 		return nil, err
 	}
 
+	// set up logHandler
+	a.logHandler = middleware.DefaultLogger(http.HandlerFunc(a.baseHandler))
 	return &a, nil
 }
 
@@ -497,9 +508,11 @@ func bootstrapRouter(a *Application, impl Context) error {
 	}
 
 	// Development: log the list of registered routes, etc.
-	fmt.Println("======== ROUTES ========")
-	dump(a.r.root, "", 0)
-	fmt.Println("========================")
+	var b bytes.Buffer
+	b.WriteString("\n======= ROUTES =======")
+	dump(a.r.root, "", 0, &b)
+	b.WriteString("======================")
+	log.Println(b.String())
 
 	return nil
 }

@@ -1,6 +1,7 @@
 package attache
 
 import (
+	"bytes"
 	"net/http"
 	"reflect"
 	"testing"
@@ -74,5 +75,7 @@ func TestRouter(t *testing.T) {
 		}
 	}
 
-	dump(r.root, "", 0)
+	var buf bytes.Buffer
+	dump(r.root, "", 0, &buf)
+	t.Logf("\n%s", buf.String())
 }

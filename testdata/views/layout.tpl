@@ -1,0 +1,1 @@
+CONTENT[{{block "content" .}}{{end}}]
