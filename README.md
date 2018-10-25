@@ -2,6 +2,7 @@
 
 [![godoc](https://img.shields.io/badge/godoc-reference-5272B4.svg)](https://godoc.org/github.com/attache/attache)
 [![Go Report Card](https://goreportcard.com/badge/github.com/attache/attache)](https://goreportcard.com/report/github.com/attache/attache)
+[![CircleCI](https://circleci.com/gh/attache/attache.svg?style=svg)](https://circleci.com/gh/attache/attache)
 
 _Since this project is still a work in progress, please make sure you test it out before deciding to use it._
 
