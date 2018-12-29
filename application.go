@@ -31,8 +31,6 @@ type Application struct {
 
 // ServeHTTP implements http.Handler for *Application.
 func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Ensure a's recovery method runs.
-	defer a.recover(w, r)
 	// call main handler func
 	if a.NoLogging {
 		a.baseHandler(w, r)
@@ -42,6 +40,9 @@ func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Application) baseHandler(w http.ResponseWriter, r *http.Request) {
+	// Ensure a's recovery method runs.
+	defer a.recover(w, r)
+
 	// Try to locate the handler stack for the request's path.
 	n := a.r.root.lookup(r.URL.Path)
 	if n == nil || (!n.hasMount() && len(n.methods) == 0) {
@@ -509,7 +510,7 @@ func bootstrapRouter(a *Application, impl Context) error {
 
 	// Development: log the list of registered routes, etc.
 	var b bytes.Buffer
-	b.WriteString("\n======= ROUTES =======")
+	b.WriteString("\n======= ROUTES =======\n")
 	dump(a.r.root, "", 0, &b)
 	b.WriteString("======================")
 	log.Println(b.String())
