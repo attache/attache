@@ -1,0 +1,8 @@
+# https://taskfile.dev
+
+version: "3"
+
+tasks:
+  build:cli:
+    cmds:
+      - "go generate ./cmd/... && go install ./cmd/attache"
