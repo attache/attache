@@ -114,7 +114,7 @@ func templatesAttacheJsonTpl() (*asset, error) {
 	return a, nil
 }
 
-var _templatesGoModTpl = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xca\xcd\x4f\x29\xcd\x49\x55\xa8\xae\xd6\x73\xc9\x2c\xaa\xad\xe5\xe2\x4a\xcf\x57\x30\xd4\x33\x34\xe5\xe2\x2a\x4a\x2d\x2c\xcd\x2c\x4a\x55\xd0\xe0\xe2\x4c\xcf\x2c\xc9\x28\x4d\xd2\x4b\xce\xcf\xd5\x4f\x2c\x29\x49\x4c\xce\x48\x85\xd1\x0a\x65\x06\x7a\x66\x7a\x06\x5c\x9a\x80\x00\x00\x00\xff\xff\x93\x4d\xdd\x9b\x48\x00\x00\x00")
+var _templatesGoModTpl = []byte("\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\xca\xcd\x4f\x29\xcd\x49\x55\xa8\xae\xd6\x73\xc9\x2c\xaa\xad\xe5\xe2\x4a\xcf\x57\x30\xd4\x33\x34\xe5\xe2\x2a\x4a\x2d\x2c\xcd\x2c\x4a\x55\xd0\xe0\xe2\x4c\xcf\x2c\xc9\x28\x4d\xd2\x4b\xce\xcf\xd5\x4f\x2c\x29\x49\x4c\xce\x48\x85\xd1\x0a\x65\x06\x7a\x66\x7a\x86\x5c\x9a\x80\x00\x00\x00\xff\xff\xa4\x27\x1f\x9a\x48\x00\x00\x00")
 
 func templatesGoModTplBytes() ([]byte, error) {
 	return bindataRead(
@@ -129,8 +129,8 @@ func templatesGoModTpl() (*asset, error) {
 		return nil, err
 	}
 
-	info := bindataFileInfo{name: "templates/go.mod.tpl", size: 72, mode: os.FileMode(0644), modTime: time.Unix(1606362289, 0)}
-	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x3f, 0x12, 0x3a, 0xd2, 0x56, 0x46, 0xd6, 0xff, 0x74, 0xee, 0x13, 0xcb, 0xf2, 0x5, 0xc2, 0xd4, 0xc3, 0x91, 0x23, 0x73, 0x5b, 0x54, 0x29, 0x3e, 0x9f, 0x37, 0x9b, 0xb1, 0xb7, 0x7d, 0x69, 0x45}}
+	info := bindataFileInfo{name: "templates/go.mod.tpl", size: 72, mode: os.FileMode(0644), modTime: time.Unix(1606365842, 0)}
+	a := &asset{bytes: bytes, info: info, digest: [32]uint8{0x85, 0xb7, 0xd4, 0xaa, 0x8c, 0x48, 0xdc, 0xc5, 0x5c, 0xa8, 0xfd, 0x7a, 0x36, 0x84, 0x96, 0x2, 0x70, 0xab, 0x97, 0x49, 0x37, 0x1d, 0xf0, 0xe1, 0x97, 0xf2, 0x5a, 0x14, 0xd3, 0xf1, 0xf3, 0x53}}
 	return a, nil
 }
 
