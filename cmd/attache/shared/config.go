@@ -18,7 +18,7 @@ func GetConfig() (*viper.Viper, error) {
 
 func parseConfig() (*viper.Viper, error) {
 	v := viper.New()
-	v.SetConfigName(".at-conf")
+	v.SetConfigName("attache.json")
 	v.AddConfigPath(".")
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err
