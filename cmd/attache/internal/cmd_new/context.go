@@ -9,8 +9,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"text/template"
 
-	"github.com/alecthomas/template"
 	"github.com/iancoleman/strcase"
 )
 
@@ -100,7 +100,7 @@ func (c *Context) FileTemplate(name string) func() ([]byte, error) {
 	fullPath := path.Join("templates", name)
 	return func() ([]byte, error) {
 		tpl := template.New("")
-		if strings.HasSuffix(name, ".tpl.tpl") {
+		if strings.HasSuffix(name, ".go.html.tpl") {
 			tpl.Delims("[[", "]]")
 		}
 
