@@ -66,8 +66,8 @@ func (c *Context) do(args []string) error {
 
 		Dirs: []Dir{
 			{Name: "views", Files: []File{
-				{Name: "layout.tpl", BodyFunc: c.FileTemplate("layout.tpl.tpl")},
-				{Name: "index.tpl", BodyFunc: c.FileTemplate("index.tpl.tpl")},
+				{Name: "layout.go.html", BodyFunc: c.FileTemplate("layout.go.html.tpl")},
+				{Name: "index.go.html", BodyFunc: c.FileTemplate("index.go.html.tpl")},
 			}},
 			{Name: "models"},
 			{Name: "web", Dirs: []Dir{

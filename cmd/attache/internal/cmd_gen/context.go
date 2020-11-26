@@ -165,17 +165,17 @@ func (c *Context) init(args []string) error {
 
 		c.Views = []View{
 			View{
-				File: filepath.Join("views", c.ScopeSnake, c.Model.Table, "create.tpl"),
+				File: filepath.Join("views", c.ScopeSnake, c.Model.Table, "create.go.html"),
 				Body: create.String(),
 			},
 
 			View{
-				File: filepath.Join("views", c.ScopeSnake, c.Model.Table, "update.tpl"),
+				File: filepath.Join("views", c.ScopeSnake, c.Model.Table, "update.go.html"),
 				Body: update.String(),
 			},
 
 			View{
-				File: filepath.Join("views", c.ScopeSnake, c.Model.Table, "list.tpl"),
+				File: filepath.Join("views", c.ScopeSnake, c.Model.Table, "list.go.html"),
 				Body: list.String(),
 			},
 		}

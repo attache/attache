@@ -45,7 +45,7 @@ func viewParseError(currentFile string, e error) error {
 }
 
 func (a attacheViews) load(c *viewDriver.Cache, path, prefix string, layouts []viewLayout) error {
-	const layoutFileName = "layout.tpl"
+	const layoutFileName = "layout.go.html"
 
 	stats, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -93,9 +93,9 @@ func (a attacheViews) load(c *viewDriver.Cache, path, prefix string, layouts []v
 		var tplName string
 
 		if prefix == "" {
-			tplName = strings.TrimSuffix(file.Name(), ".tpl")
+			tplName = strings.TrimSuffix(file.Name(), ".go.html")
 		} else {
-			tplName = fmt.Sprintf("%s.%s", prefix, strings.TrimSuffix(file.Name(), ".tpl"))
+			tplName = fmt.Sprintf("%s.%s", prefix, strings.TrimSuffix(file.Name(), ".go.html"))
 		}
 
 		c.Put(tplName, tpl)
