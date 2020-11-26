@@ -19,6 +19,8 @@ require (
 	github.com/kevinburke/go-bindata v3.22.0+incompatible
 	github.com/mattn/go-sqlite3 v1.14.5
 	github.com/mitchellh/copystructure v1.0.0 // indirect
+	github.com/mitchellh/reflectwalk v1.0.1 // indirect
 	github.com/spf13/viper v1.7.1
+	golang.org/x/crypto v0.0.0-20201124201722-c8d3bf9c5392 // indirect
 	golang.org/x/tools v0.0.0-20201125231158-b5590deeca9b
 )
