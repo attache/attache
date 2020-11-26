@@ -60,6 +60,8 @@ func (c *Context) do(args []string) error {
 			{Name: ".gitignore", Body: []byte("secret")},
 			{Name: "attache.json", BodyFunc: c.FileTemplate("attache.json.tpl")},
 			{Name: "main.go", BodyFunc: c.FileTemplate("main.go.tpl")},
+			{Name: "Taskfile.yml", BodyFunc: c.FileTemplate("Taskfile.yml.tpl")},
+			{Name: "go.mod", BodyFunc: c.FileTemplate("go.mod.tpl")},
 		},
 
 		Dirs: []Dir{

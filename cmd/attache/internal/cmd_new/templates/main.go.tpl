@@ -5,10 +5,10 @@ import (
     "log"
     
     // database drivers
-    // (remove lines you don't need)
-    _ "github.com/mattn/go-sqlite3" // Sqlite3
-    _ "github.com/go-sql-driver/mysql" // MySQL
-    _ "github.com/lib/pq" // PostgreSQL
+    // (uncomment the lines you need)
+    // _ "github.com/mattn/go-sqlite3"    // Sqlite3
+    // _ "github.com/go-sql-driver/mysql" // MySQL
+    // _ "github.com/jackc/pgx"           // PostgreSQL
 
     // attache
     "github.com/attache/attache"
