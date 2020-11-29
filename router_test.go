@@ -23,7 +23,7 @@ func TestRouter(t *testing.T) {
 		{"", "/web", ""},
 		{"", "/web", errRouteExists},
 		{"GET", "/we", ""},
-		{"GET", "/web/bad", errRoutePastMount},
+		{"GET", "/web/bad", errRouteOverMount},
 		{"GET", "/x/y/z", ""},
 		{"", "/x/y", errMountOnKnownPath},
 	}

@@ -17,7 +17,7 @@ func (s sentinelError) Error() string  { return string(s) }
 const (
 	errMountOnKnownPath sentinelError = "illegal mount: path in use by routes"
 	errRouteExists      sentinelError = "illegal route: already exists"
-	errRoutePastMount   sentinelError = "illegal route: path in use by mount"
+	errRouteOverMount   sentinelError = "illegal route: path in use by mount"
 )
 
 type stack []reflect.Value
@@ -61,7 +61,7 @@ func (n *node) insert2(path string, mustBeLeaf bool, guardStack stack) (*node, e
 		}
 
 		if n.hasMount() {
-			return nil, errRoutePastMount
+			return nil, errRouteOverMount
 		}
 
 		newn := &node{
@@ -248,32 +248,30 @@ func canonicalize(p string, trailingSlash bool) string {
 }
 
 func dump(root *node, soFar string, deep int, buf *bytes.Buffer) {
-	const indent = "- "
+	joined := soFar + root.prefix
 
-	joined := soFar
-	if root.prefix != "" {
-		joined += root.prefix
-	}
+	// Only output for nodes that don't have a defined handler or mount
+	if root.isDefined() {
+		if root.hasMount() {
+			fmt.Fprintf(buf, "%-32s%s", joined, "(mounted)")
+		} else {
+			fmt.Fprintf(buf, "%-32s", joined)
+			methods := []string{}
+			for m := range root.methods {
+				methods = append(methods, m)
+			}
 
-	if root.hasMount() {
-		fmt.Fprintf(buf, "%s%s %s", strings.Repeat(indent, deep), joined, "(mounted)")
-	} else {
-		fmt.Fprintf(buf, "%s%s", strings.Repeat(indent, deep), joined)
-		methods := []string{}
-		for m := range root.methods {
-			methods = append(methods, m)
+			if len(methods) > 0 {
+				fmt.Fprintf(buf, "%v ", methods)
+			}
 		}
 
-		if len(methods) > 0 {
-			fmt.Fprintf(buf, " %v", methods)
+		if len(root.guard) > 0 {
+			fmt.Fprintf(buf, "(%d guards)", len(root.guard))
 		}
-	}
 
-	if len(root.guard) > 0 {
-		fmt.Fprintf(buf, " (%d guards)", len(root.guard))
+		fmt.Fprintln(buf)
 	}
-
-	fmt.Fprintln(buf)
 
 	for _, kid := range root.kids {
 		dump(kid, joined, deep+1, buf)
