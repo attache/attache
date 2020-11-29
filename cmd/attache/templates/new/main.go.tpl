@@ -19,17 +19,20 @@ type {{.Name}} struct {
     attache.BaseContext 
 
     // capabilities
-    attache.DefaultEnvironment
-    attache.DefaultFileServer
-    attache.DefaultViews
-    // attache.DefaultDB // enable database connectivity
-    // attache.DefaultSession // enable session storage
+    attache.DefaultEnvironment // loads environment variables from  the file pointed to by $ENV_FILE, defaults to secret/dev.env
+    attache.DefaultDB          // connects to a database using $DB_DRIVER and $DB_DSN
+    {{ if not .API -}}
+    attache.DefaultFileServer  // serves static files from the web/dist directory
+    attache.DefaultViews       // provides rendering capabilities for views in the views directory
+    {{- end }}
+    // attache.DefaultSession  // provides access to a secure cookie session
 }
 
 func (c *{{.Name}}) Init(w http.ResponseWriter, r *http.Request) {
     /* TODO: initialize context */
 }
 
+{{ if not .API -}}
 // GET /
 func (c *{{.Name}}) GET_() {
     c.GET_Index()
@@ -39,6 +42,18 @@ func (c *{{.Name}}) GET_() {
 func (c *{{.Name}}) GET_Index() {
     attache.RenderHTML(c, "index")
 }
+{{- else -}}
+// GET /health
+func (c *{{.Name}}) GET_Health() {
+    attache.RenderJSON(
+        c.ResponseWriter(),
+        map[string]interface{}{
+            "time": time.Now().Unix(),
+            "ok": true,
+        },
+    )
+}
+{{- end }}
 
 func main() {
     // bootstrap application for context type {{.Name}}
@@ -47,5 +62,5 @@ func main() {
         log.Fatalln(err)
     }
 
-    log.Fatalln(app.Run())
+    log.Fatalln(app.Run(":5000"))
 }

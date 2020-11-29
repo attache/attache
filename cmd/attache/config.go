@@ -1,4 +1,4 @@
-package shared
+package main
 
 import "github.com/spf13/viper"
 
@@ -18,8 +18,7 @@ func GetConfig() (*viper.Viper, error) {
 
 func parseConfig() (*viper.Viper, error) {
 	v := viper.New()
-	v.SetConfigName("attache.json")
-	v.AddConfigPath(".")
+	v.SetConfigFile("./attache.json")
 	if err := v.ReadInConfig(); err != nil {
 		return nil, err
 	}

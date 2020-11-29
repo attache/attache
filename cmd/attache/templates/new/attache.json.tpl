@@ -1,0 +1,4 @@
+{
+    "ContextType": "{{.Name}}",
+    "APIOnly": {{.API}}
+}

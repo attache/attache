@@ -1,15 +1,13 @@
-package cmd_gen
+package main
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/iancoleman/strcase"
 )
 
 type Model struct {
-	Name  string
-	Table string
-
 	DefaultKey     bool
 	KeyStructField string
 	KeyColumn      string
@@ -26,7 +24,7 @@ type Field struct {
 	NoInsert, NoUpdate, NoSelect bool
 }
 
-func parseFields(defs []string) (list []Field, hasKey bool) {
+func parseFields(defs []string) (list []Field, hasKey bool, err error) {
 	list = []Field{} // ensure list is non-nil
 
 	for _, fdef := range defs {
@@ -45,19 +43,16 @@ func parseFields(defs []string) (list []Field, hasKey bool) {
 		}
 
 		if len(parts) > 2 {
-			f.Key = strings.Index(parts[2], "key") > -1
+			f.Key = strings.Contains(parts[2], "key")
 			if hasKey && f.Key {
-				panic(ArgumentError{
-					Cause: nil,
-					Issue: "cannot specify multiple keys",
-				})
+				return nil, false, errors.New("cannot specify multiple keys")
 			}
 
 			hasKey = hasKey || f.Key
 
-			f.NoInsert = strings.Index(parts[2], "noinsert") > -1
-			f.NoUpdate = strings.Index(parts[2], "noupdate") > -1
-			f.NoSelect = strings.Index(parts[2], "noselect") > -1
+			f.NoInsert = strings.Contains(parts[2], "noinsert")
+			f.NoUpdate = strings.Contains(parts[2], "noupdate")
+			f.NoSelect = strings.Contains(parts[2], "noselect")
 
 			// enforce certain flags for keys
 			if f.Key {
@@ -71,18 +66,15 @@ func parseFields(defs []string) (list []Field, hasKey bool) {
 	return
 }
 
-func buildModel(name string, table string, defs []string) *Model {
+func buildModel(defs []string) (*Model, error) {
 	m := new(Model)
 
-	m.Name = strcase.ToCamel(name)
-	if table == "" {
-		m.Table = strcase.ToSnake(m.Name)
-	} else {
-		m.Table = table
+	var err error
+	var hasKey bool
+	m.Fields, hasKey, err = parseFields(defs)
+	if err != nil {
+		return nil, err
 	}
-
-	hasKey := false
-	m.Fields, hasKey = parseFields(defs)
 
 	if !hasKey {
 		m.DefaultKey = true
@@ -113,5 +105,5 @@ func buildModel(name string, table string, defs []string) *Model {
 		}
 	}
 
-	return m
+	return m, nil
 }

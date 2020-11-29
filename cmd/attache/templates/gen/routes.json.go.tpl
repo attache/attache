@@ -10,20 +10,20 @@ import (
 	"github.com/attache/attache"
 )
 
-func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Model.Name}}List() {
+func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Name}}List() {
 	w := c.ResponseWriter()
-	all, err := c.DB().All(new(models.{{.Model.Name}}))
+	all, err := c.DB().All(new(models.{{.Name}}))
 	if err != nil {
 		attache.ErrorFatal(err)
 	}
 	attache.RenderJSON(w, all)
 }
 
-func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Model.Name}}() {
+func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Name}}() {
 	w := c.ResponseWriter()
 	r := c.Request()
 	id := r.FormValue("id")
-	var target models.{{.Model.Name}}
+	var target models.{{.Name}}
 	if err := c.DB().Get(&target, id); err != nil {
 		if err == attache.ErrRecordNotFound {
 			attache.Error(404)
@@ -33,14 +33,14 @@ func (c *{{.ContextType}}) GET_{{.ScopeCamel}}{{.Model.Name}}() {
 	attache.RenderJSON(w, target)
 }
 
-func (c *{{.ContextType}}) POST_{{.ScopeCamel}}{{.Model.Name}}New() {
+func (c *{{.ContextType}}) POST_{{.ScopeCamel}}{{.Name}}New() {
 	w := c.ResponseWriter()
 	r := c.Request()
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		attache.ErrorFatal(err)
 	}
-	var target models.{{.Model.Name}}
+	var target models.{{.Name}}
 	if err := json.Unmarshal(body, &target); err != nil {
 		attache.ErrorFatal(err)
 	}
@@ -50,12 +50,12 @@ func (c *{{.ContextType}}) POST_{{.ScopeCamel}}{{.Model.Name}}New() {
 	w.WriteHeader(200)
 }
 
-func (c *{{.ContextType}}) POST_{{.ScopeCamel}}{{.Model.Name}}() {
+func (c *{{.ContextType}}) POST_{{.ScopeCamel}}{{.Name}}() {
 	w := c.ResponseWriter()
 	r := c.Request()
 	id := r.FormValue("id")
-	var target models.{{.Model.Name}}
-	if err := c.DB().Find(&target, id); err != nil {
+	var target models.{{.Name}}
+	if err := c.DB().Get(&target, id); err != nil {
 		if err == attache.ErrRecordNotFound {
 			attache.Error(404)
 		}
@@ -74,11 +74,11 @@ func (c *{{.ContextType}}) POST_{{.ScopeCamel}}{{.Model.Name}}() {
 	w.WriteHeader(200)
 }
 
-func (c *{{.ContextType}}) DELETE_{{.ScopeCamel}}{{.Model.Name}}() {
+func (c *{{.ContextType}}) DELETE_{{.ScopeCamel}}{{.Name}}() {
 	w := c.ResponseWriter()
 	r := c.Request()
 	id := r.FormValue("id")
-	var target models.{{.Model.Name}}
+	var target models.{{.Name}}
 	if err := c.DB().Get(&target, id); err != nil {
 		if err == attache.ErrRecordNotFound {
 			w.WriteHeader(200)

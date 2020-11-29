@@ -3,61 +3,35 @@ package main
 import (
 	"log"
 	"os"
-	"path/filepath"
-	"plugin"
 
-	"github.com/attache/attache/cmd/attache/shared"
+	"github.com/alexflint/go-arg"
 )
 
-const helpText = `attache: cli for the attache framework
+func init() { log.SetFlags(0) }
 
-COMMANDS:
-	new: create a new project
-	gen: generate models, views, and/or routes
-`
-
-func init() {
-	log.SetFlags(0)
+// CLI described the available subcommands for the attache CLI.
+type CLI struct {
+	New *CommandNew `arg:"subcommand:new" help:"generate a new attache project"`
+	Gen *CommandGen `arg:"subcommand:gen" help:"generate files within an attache project"`
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatalln(helpText)
-	}
-
-	cmd, cmdArgs := os.Args[1], os.Args[2:]
-
-	if plug := builtins[cmd]; plug != nil {
-		plugCmd := plug.Command()
-		if err := plugCmd.Execute(cmdArgs); err != nil {
-			log.Fatalf("%s: %s", plug.Name(), err)
+	var args CLI
+	p := arg.MustParse(&args)
+	switch {
+	case args.New != nil:
+		args.New.Version = Version
+		if err := args.New.Execute(); err != nil {
+			log.Fatalln(err)
 		}
-
-		return // end
-	}
-
-	plugDir := filepath.Join(os.Getenv("HOME"), ".attache", "plugins")
-	plugFile := filepath.Join(plugDir, cmd+".so")
-
-	loaded, err := plugin.Open(plugFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			log.Fatalf("cannot find plugin %s", plugFile)
+		return
+	case args.Gen != nil:
+		if err := args.Gen.Execute(); err != nil {
+			log.Fatalln(err)
 		}
-
-		log.Fatalf("error loading plugin %s", plugFile)
+		return
+	default:
+		p.WriteHelp(os.Stderr)
+		os.Exit(1)
 	}
-
-	sym, _ := loaded.Lookup("Export")
-
-	if plug, ok := sym.(shared.Plugin); ok {
-		plugCmd := plug.Command()
-		if err := plugCmd.Execute(cmdArgs); err != nil {
-			log.Fatalf("%s: %s", plug.Name(), err)
-		}
-
-		return // end
-	}
-
-	log.Fatalf("invalid plugin %s", plugFile)
 }

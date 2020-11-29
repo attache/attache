@@ -1,5 +1,4 @@
 [[- $scopePath := .ScopePath -]]
-[[- with .Model -]]
 {{define "title"}}[[.Name]] List{{end}}
 {{define "body"}}
 {{with .ViewData}}
@@ -10,7 +9,7 @@
 			<table class="table table-bordered">
 				<thead>
 					<tr>
-					[[- range .Fields]]
+					[[- range .Model.Fields]]
 						[[- if not .NoSelect]]
 						<th>[[.StructField]]</th>
 						[[- end -]]
@@ -20,11 +19,11 @@
 				<tbody>
 				{{range .}}
 					<tr>
-					[[- $table := .Table]]
-					[[- range .Fields]]
+					[[- $nameSnake := .NameSnake]]
+					[[- range .Model.Fields]]
 						[[- if not .NoSelect]]
 						<td>
-							[[- if .Key -]]<a href="[[$scopePath]]/[[$table]]?id={{.[[.StructField]]}}">[[- end -]]
+							[[- if .Key -]]<a href="[[$scopePath]]/[[$nameSnake]]?id={{.[[.StructField]]}}">[[- end -]]
 							{{.[[.StructField]]}}
 							[[- if .Key -]]</a>[[- end -]]
 						</td>
@@ -39,4 +38,3 @@
 </div>
 {{end}}
 {{end}}
-[[end]]

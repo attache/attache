@@ -1,14 +1,13 @@
 [[- $scopePath := .ScopePath -]]
-[[- with .Model -]]
 {{define "title"}}New [[.Name]]{{end}}
 {{define "body"}}
 <div class="container">
 	<div class="card">
 		<div class="card-body">
-			<form name="new_[[.Table]]" method="post" action="[[$scopePath]]/[[.Table]]/new">
+			<form name="new_[[.NameSnake]]" method="post" action="[[$scopePath]]/[[.NameSnake]]/new">
 				<fieldset>
 					<legend>New [[.Name]]</legend>
-					[[range .Fields]]
+					[[range .Model.Fields]]
 					[[- if not .NoInsert]]
 					<div class="form-group">
 						<label for="[[.StructField]]">[[.StructField]]</label>
@@ -23,4 +22,3 @@
 	</div>
 </div>
 {{end}}
-[[end]]
