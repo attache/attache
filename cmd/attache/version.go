@@ -3,4 +3,4 @@
 package main
 
 // Version for which the CLI was built
-const Version = "master"
+const Version = "v0.7.0"
