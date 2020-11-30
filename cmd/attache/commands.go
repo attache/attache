@@ -55,11 +55,15 @@ func (c *CommandNew) ProjectStructure() (dir Dir) {
 				}},
 			}},
 		)
+
+		dir.Files = append(
+			dir.Files,
+			File{Name: ".prettierignore", BodyFunc: c.FileTemplate("prettierignore.tpl")},
+		)
 	}
 	dir.Files = append(
 		dir.Files,
 		File{Name: ".gitignore", BodyFunc: c.FileTemplate("gitignore.tpl")},
-		File{Name: ".prettierignore", BodyFunc: c.FileTemplate("prettierignore.tpl")},
 		File{Name: "attache.json", BodyFunc: c.FileTemplate("attache.json.tpl")},
 		File{Name: "main.go", BodyFunc: c.FileTemplate("main.go.tpl")},
 		File{Name: "Taskfile.yml", BodyFunc: c.FileTemplate("Taskfile.yml.tpl")},
