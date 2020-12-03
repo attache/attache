@@ -10,6 +10,12 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: 1.15.5
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
       - run: go get -v ./...
       - run: go test -v ./...
 
